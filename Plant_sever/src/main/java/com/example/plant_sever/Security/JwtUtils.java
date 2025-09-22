@@ -34,6 +34,7 @@ public class JwtUtils {
 
         System.out.println("Generated token: " + token);
         System.out.println("Using secret (len=" + jwtSecret.getBytes(StandardCharsets.UTF_8).length + "): " + jwtSecret);
+        System.out.println(">>>> jwtExpirationMs loaded = " + jwtExpirationMs);
 
         return token;
     }
