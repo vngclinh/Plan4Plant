@@ -31,7 +31,4 @@ public class User {
 
     @Column(name = "phone_number", nullable = true)
     private String phoneNumber;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Profile> profileList = new ArrayList<>();
 }
