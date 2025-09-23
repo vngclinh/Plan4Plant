@@ -9,7 +9,6 @@ import com.example.plant_sever.model.Plant;
 import com.example.plant_sever.model.Profile;
 import com.example.plant_sever.model.User;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

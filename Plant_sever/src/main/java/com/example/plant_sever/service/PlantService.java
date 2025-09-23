@@ -14,6 +14,6 @@ public class PlantService {
     private final PlantRepo plantRepo; // <-- must be final
 
     public List<Plant> searchPlants(String keyword) {
-        return plantRepo.searchByName(keyword.trim().toLowerCase());
+        return plantRepo.searchPlants(keyword.trim().toLowerCase());
     }
 }

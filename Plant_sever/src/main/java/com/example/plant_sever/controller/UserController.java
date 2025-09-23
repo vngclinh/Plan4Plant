@@ -1,13 +1,9 @@
 package com.example.plant_sever.controller;
 
-import com.example.plant_sever.DAO.UserRepo;
 import com.example.plant_sever.DTO.ChangepasswordRequest;
-import com.example.plant_sever.Security.JwtUtils;
 import com.example.plant_sever.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/user")
