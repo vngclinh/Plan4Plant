@@ -12,7 +12,8 @@ public class RefreshTokenService {
 
     private final Map<String, RefreshTokenInfo> tokens = new ConcurrentHashMap<>();
     // 1000L * 60 * 60 * 24
-    private final long refreshTokenDurationMs = 10L;
+    // 30 days in milliseconds
+    private final long refreshTokenDurationMs = 1000L * 60 * 60 * 24 * 30;
 
     public String createRefreshToken(String username) {
         String token = UUID.randomUUID().toString();

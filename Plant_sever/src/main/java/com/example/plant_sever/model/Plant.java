@@ -11,6 +11,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+
+
 @Entity
 @Getter
 @Setter
@@ -20,21 +22,42 @@ public class Plant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "common_name", nullable = false, columnDefinition = "VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    @Column(name = "common_name", length = 100, nullable = false)
     private String commonName;
 
-    @Column(name = "scientific_name", columnDefinition = "VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    @Column(name = "scientific_name", length = 150)
     private String scientificName;
 
-    @Column(name = "other_names", columnDefinition = "VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-    private String otherNames;
+    @Column(name = "phylum", length = 100)
+    private String phylum;
 
-    @Column(columnDefinition = "LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    @Column(name = "class", length = 100)
+    private String plantClass;   // renamed, since `class` is reserved in Java
+
+    @Column(name = "\"order\"", length = 100)
+    private String plantOrder;   // renamed, since `order` is reserved in SQL
+
+    @Column(name = "family", length = 100)
+    private String family;
+
+    @Column(name = "genus", length = 100)
+    private String genus;
+
+    @Column(name = "species", length = 100)
+    private String species;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    @Column(name = "water_schedule", length = 50)
+    private String waterSchedule;
+
+    @Column(name = "light", length = 50)
+    private String light;
+
+    @Column(name = "temperature", length = 50)
+    private String temperature;
+
+    @Column(columnDefinition = "TEXT")
     private String careguide;
-
-    private String imagePath;
-
 }
