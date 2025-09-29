@@ -30,6 +30,9 @@ public class Garden {
     private LocalDateTime dateAdded;
 
     @Enumerated(EnumType.STRING)
+    private GardenType type = GardenType.Indoor;
+
+    @Enumerated(EnumType.STRING)
     private GardenStatus status = GardenStatus.ALIVE;
 
     @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)

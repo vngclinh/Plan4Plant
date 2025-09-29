@@ -47,4 +47,5 @@ public class GardenController {
                 plantRepo.findById(plantId).orElseThrow());
         return ResponseEntity.ok(exists);
     }
+
 }

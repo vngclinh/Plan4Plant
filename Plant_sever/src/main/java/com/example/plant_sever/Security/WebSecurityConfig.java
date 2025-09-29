@@ -31,7 +31,6 @@ public class WebSecurityConfig {
 
                 );
 
-        // Use the Spring-managed filter, not a new instance
         http.addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

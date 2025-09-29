@@ -56,4 +56,12 @@ public class Plant {
     
     @Column(name = "image_url", length = 255)
     private String imageUrl;
+
+    private Integer minInterval;
+    private Integer maxInterval;
+
+    @Enumerated(EnumType.STRING)
+    private IntervalUnit unit;
+
+    private Double waterAmount;
 }
