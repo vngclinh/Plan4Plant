@@ -62,4 +62,15 @@ public class GardenScheduleController {
 
         return ResponseEntity.ok(scheduleService.getAll(user));
     }
+
+    @PostMapping("/garden/{gardenId}/generate")
+    public ResponseEntity<List<GardenScheduleResponse>> generateWeeklyWateringSchedule(
+            @PathVariable Long gardenId,
+            @RequestParam double lat,
+            @RequestParam double lon
+    ) {
+        List<GardenScheduleResponse> schedules =
+                scheduleService.generateWeeklyWateringSchedule(gardenId, lat, lon);
+        return ResponseEntity.ok(schedules);
+    }
 }

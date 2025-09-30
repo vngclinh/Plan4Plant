@@ -60,8 +60,8 @@ public class Plant {
     private Integer minInterval;
     private Integer maxInterval;
 
-    @Enumerated(EnumType.STRING)
-    private IntervalUnit unit;
+    private Double minTemperature;
+    private Double maxTemperature;
 
     private Double waterAmount;
 }

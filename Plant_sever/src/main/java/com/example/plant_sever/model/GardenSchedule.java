@@ -32,6 +32,9 @@ public class GardenSchedule {
     @Column(length = 500)
     private String note;
 
+    // --- new field for watering ---
+    private Double waterAmount; // in ml, only used for watering
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

@@ -16,4 +16,6 @@ public class GardenScheduleRequest {
     private LocalDateTime scheduledTime;
     private Completion completion;   // optional, defaults to NotDone
     private String note;
+    private Double waterAmount;      // optional, default to plant.waterAmount()
 }
+

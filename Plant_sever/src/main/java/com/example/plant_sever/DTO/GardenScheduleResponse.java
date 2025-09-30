@@ -17,6 +17,7 @@ public class GardenScheduleResponse {
     private LocalDateTime scheduledTime;
     private Completion completion;
     private String note;
+    private Double waterAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
