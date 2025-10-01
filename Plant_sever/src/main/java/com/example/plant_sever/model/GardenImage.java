@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name="garden_image")
 @Getter
@@ -20,5 +22,6 @@ public class GardenImage {
 
     @ManyToOne
     @JoinColumn(name = "garden_id")
+    @JsonIgnore
     private Garden garden;
 }
