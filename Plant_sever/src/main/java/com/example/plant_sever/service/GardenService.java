@@ -43,6 +43,8 @@ public class GardenService {
         Garden garden = new Garden();
         garden.setUser(user);
         garden.setPlant(plant);
+        garden.setType(request.getType());
+        garden.setPotType(request.getPotType());
         garden.setStatus(GardenStatus.ALIVE); // set mặc định
         garden.setDateAdded(LocalDateTime.now());
 

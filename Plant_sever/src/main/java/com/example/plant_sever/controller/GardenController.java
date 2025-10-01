@@ -55,6 +55,7 @@ public class GardenController {
                 plantRepo.findById(plantId).orElseThrow());
         return ResponseEntity.ok(exists);
     }
+
     @GetMapping("/my")
     public ResponseEntity<List<Garden>> getMyGarden() {
         return ResponseEntity.ok(gardenService.getUserGarden());

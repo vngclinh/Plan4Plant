@@ -12,9 +12,9 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "garden")
-
 public class Garden {
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private Long id;
 
     @ManyToOne
@@ -30,8 +30,14 @@ public class Garden {
     private LocalDateTime dateAdded;
 
     @Enumerated(EnumType.STRING)
+    private GardenType type = GardenType.Indoor;
+
+    @Enumerated(EnumType.STRING)
     private GardenStatus status = GardenStatus.ALIVE;
 
     @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GardenImage> images = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    private PotType potType = PotType.MEDIUM; // default pot type
 }

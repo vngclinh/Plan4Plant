@@ -56,4 +56,12 @@ public class Plant {
     
     @Column(name = "image_url", length = 255)
     private String imageUrl;
+
+    private Integer minInterval;
+    private Integer maxInterval;
+
+    private Double minTemperature;
+    private Double maxTemperature;
+
+    private Double waterAmount;
 }
