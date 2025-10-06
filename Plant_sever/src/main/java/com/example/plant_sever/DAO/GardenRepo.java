@@ -19,4 +19,5 @@ public interface GardenRepo extends JpaRepository<Garden, Long> {
             "WHERE g.user.id = :userId")
     List<Garden> findByUserId(@Param("userId") Long userId);
     boolean existsByUserAndPlant(User user, Plant plant);
+    boolean existsByUserAndNickname(User user, String nickname);
 }

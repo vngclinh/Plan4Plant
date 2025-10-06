@@ -42,9 +42,13 @@ public class GardenService {
         Plant plant = plantRepo.findById(request.getPlantId())
                 .orElseThrow(() -> new RuntimeException("Plant not found"));
 
+        // Generate unique nickname
+        String uniqueNickname = generateUniqueNickname(user, request.getNickname());
+
         Garden garden = new Garden();
         garden.setUser(user);
         garden.setPlant(plant);
+        garden.setNickname(uniqueNickname);
         garden.setType(request.getType());
         garden.setPotType(request.getPotType());
         garden.setStatus(request.getStatus() != null ? request.getStatus() : GardenStatus.ALIVE);
@@ -82,18 +86,28 @@ public class GardenService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your garden");
         }
 
-        if (request.getNickname() != null) garden.setNickname(request.getNickname());
+        // Update nickname with uniqueness check
+        if (request.getNickname() != null) {
+            String newNickname = request.getNickname().trim();
+            if (!newNickname.equals(garden.getNickname())) {
+                newNickname = generateUniqueNickname(user, newNickname);
+                garden.setNickname(newNickname);
+            }
+        }
+
         if (request.getStatus() != null) garden.setStatus(request.getStatus());
         if (request.getType() != null) garden.setType(request.getType());
         if (request.getPotType() != null) garden.setPotType(request.getPotType());
 
-        if (request.getDiseaseIds() != null && !request.getDiseaseIds().isEmpty()) {
-            List<Disease> diseases = diseaseRepo.findAllById(request.getDiseaseIds());
+        // Update diseases
+        if (request.getDiseaseIds() != null) {
+            List<Disease> diseases = request.getDiseaseIds().isEmpty() ?
+                    new ArrayList<>() :
+                    diseaseRepo.findAllById(request.getDiseaseIds());
             garden.setDiseases(diseases);
-        } else {
-            garden.setDiseases(new ArrayList<>());
         }
 
+        // Update plant if provided
         if (request.getPlantId() != null) {
             Plant plant = plantRepo.findById(request.getPlantId())
                     .orElseThrow(() -> new RuntimeException("Plant not found"));
@@ -119,7 +133,23 @@ public class GardenService {
         gardenRepo.delete(garden);
     }
 
-    // Convert Garden entity to response DTO
+
+    private String generateUniqueNickname(User user, String baseNickname) {
+        if (baseNickname == null || baseNickname.isBlank()) {
+            baseNickname = "My Garden";
+        }
+
+        String nickname = baseNickname.trim();
+        int counter = 1;
+
+        while (gardenRepo.existsByUserAndNickname(user, nickname)) {
+            nickname = baseNickname + " (" + counter + ")";
+            counter++;
+        }
+
+        return nickname;
+    }
+
     private GardenResponse toResponse(Garden garden) {
         GardenResponse response = new GardenResponse();
         response.setId(garden.getId());
