@@ -1,9 +1,13 @@
 package com.example.plant_sever.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.Getter;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Entity
@@ -64,4 +68,13 @@ public class Plant {
     private Double maxTemperature;
 
     private Double waterAmount;
+
+    @ManyToMany
+    @JoinTable(
+            name = "plant_disease",
+            joinColumns = @JoinColumn(name = "plant_id"),
+            inverseJoinColumns = @JoinColumn(name = "disease_id")
+    )
+    @JsonManagedReference
+    private List<Disease> diseases = new ArrayList<>();
 }

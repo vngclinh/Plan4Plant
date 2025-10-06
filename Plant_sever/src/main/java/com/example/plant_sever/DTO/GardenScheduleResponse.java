@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
 public class GardenScheduleResponse {
     private Long id;
     private Long gardenId;
+    private String gardenNickname;      // ✅ add garden nickname
+    private Long plantId;               // optional
+    private String plantName;           // optional
     private ScheduleType type;
     private LocalDateTime scheduledTime;
     private Completion completion;

@@ -1,7 +1,6 @@
 package com.example.plant_sever.DTO;
 
 import com.example.plant_sever.model.GardenStatus;
-
 import com.example.plant_sever.model.GardenType;
 import com.example.plant_sever.model.PotType;
 import lombok.Getter;
@@ -11,11 +10,12 @@ import java.util.List;
 
 @Getter
 @Setter
-public class AddGardenRequest {
-    private Long plantId;
-    private GardenStatus status;
+public class GardenResponse {
+    private Long id;
     private String nickname;
+    private String plantName;
+    private GardenStatus status;
     private GardenType type;
-    private PotType potType;
-    private List<Long> diseaseIds;
+    private PotType potType;// just the name
+    private List<String> diseaseNames;  // just names
 }
