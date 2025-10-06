@@ -29,7 +29,13 @@ public class Disease {
     private String causes;
     private String careguide;
 
+    private String imageUrl;
+
     @ManyToMany(mappedBy = "diseases")
     @JsonBackReference
     private List<Plant> plants = new ArrayList<>();
+
+    @ManyToMany(mappedBy = "diseases")
+    @JsonBackReference
+    private List<Garden> gardens = new ArrayList<>();
 }

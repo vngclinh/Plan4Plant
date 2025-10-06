@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface DiseaseRepo extends JpaRepository<Long, Disease> {
+public interface DiseaseRepo extends JpaRepository<Disease, Long> {
     @Query("SELECT d FROM Disease d WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Disease> searchByName(@Param("keyword") String keyword);
 }

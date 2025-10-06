@@ -40,4 +40,12 @@ public class Garden {
 
     @Enumerated(EnumType.STRING)
     private PotType potType = PotType.MEDIUM; // default pot type
+
+    @ManyToMany
+    @JoinTable(
+            name = "garden_disease",
+            joinColumns = @JoinColumn(name = "garden_id"),
+            inverseJoinColumns = @JoinColumn(name = "disease_id")
+    )
+    private List<Disease> diseases = new ArrayList<>();
 }

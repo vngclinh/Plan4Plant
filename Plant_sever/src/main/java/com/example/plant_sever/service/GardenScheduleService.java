@@ -97,9 +97,15 @@ public class GardenScheduleService {
     }
 
     private GardenScheduleResponse toResponse(GardenSchedule schedule) {
+        Garden garden = schedule.getGarden();
+        Plant plant = garden.getPlant();
+
         return GardenScheduleResponse.builder()
                 .id(schedule.getId())
-                .gardenId(schedule.getGarden().getId())
+                .gardenId(garden.getId())
+                .gardenNickname(garden.getNickname())
+                .plantId(plant != null ? plant.getId() : null)
+                .plantName(plant != null ? plant.getCommonName() : null)
                 .type(schedule.getType())
                 .scheduledTime(schedule.getScheduledTime())
                 .completion(schedule.getCompletion())
@@ -109,6 +115,7 @@ public class GardenScheduleService {
                 .updatedAt(schedule.getUpdatedAt())
                 .build();
     }
+
 
 
     public List<GardenScheduleResponse> getByCompletion(Completion completion) {
@@ -271,8 +278,5 @@ public class GardenScheduleService {
 
         return results;
     }
-
-
-
 
 }

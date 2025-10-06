@@ -1,5 +1,6 @@
 package com.example.plant_sever.controller;
 
+import com.example.plant_sever.DTO.GardenResponse;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,42 +39,26 @@ public class GardenController {
     private final UserRepo userRepo;
     private final GardenRepo gardenRepo;
     private final PlantRepo plantRepo;
+
     @PostMapping("/add")
-    public ResponseEntity<Garden> addPlantToGarden(@RequestBody AddGardenRequest request) {
-        Garden garden = gardenService.addPlantToGarden(request);
-        return ResponseEntity.ok(garden);
-    }
-    
-    @GetMapping("/exists")
-    public ResponseEntity<Boolean> checkExists(
-            @RequestParam Long plantId,
-            Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepo.findByUsername(username)
-                .orElseThrow();
-        boolean exists = gardenRepo.existsByUserAndPlant(user,
-                plantRepo.findById(plantId).orElseThrow());
-        return ResponseEntity.ok(exists);
+    public ResponseEntity<GardenResponse> addPlantToGarden(@RequestBody AddGardenRequest request) {
+        return ResponseEntity.ok(gardenService.addPlantToGarden(request));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<Garden>> getMyGarden() {
+    public ResponseEntity<List<GardenResponse>> getMyGarden() {
         return ResponseEntity.ok(gardenService.getUserGarden());
     }
 
-    @PutMapping("/{gardenId}/nickname")
-    public ResponseEntity<Garden> updateNickname(@PathVariable Long gardenId, @RequestBody UpdateNicknameRequest request) {
-        return ResponseEntity.ok(gardenService.updateNickname(gardenId, request.getNickname()));
-    }
-
-    @PutMapping("/{gardenId}/status")
-    public ResponseEntity<Garden> updateStatus(@PathVariable Long gardenId, @RequestBody UpdateStatusRequest request) {
-        return ResponseEntity.ok(gardenService.updateStatus(gardenId, request.getStatus()));
+    @PutMapping("/{gardenId}/")
+    public ResponseEntity<GardenResponse> updateGarden(@PathVariable Long gardenId,
+                                                       @RequestBody AddGardenRequest request) {
+        return ResponseEntity.ok(gardenService.updateGarden(gardenId, request));
     }
 
     @DeleteMapping("/{gardenId}")
     public ResponseEntity<Void> removePlant(@PathVariable Long gardenId) {
         gardenService.removePlantFromGarden(gardenId);
-        return ResponseEntity.noContent().build(); // HTTP 204
+        return ResponseEntity.noContent().build();
     }
 }
