@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -15,5 +16,13 @@ public class PlantService {
 
     public List<Plant> searchPlants(String keyword) {
         return plantRepo.searchPlants(keyword.trim().toLowerCase());
+    }
+
+    public List<Plant> getAll() {
+        return plantRepo.findAll();
+    }
+
+    public Optional<Plant> getById(Long id) {
+        return plantRepo.findById(id);
     }
 }
