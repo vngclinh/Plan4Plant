@@ -49,6 +49,7 @@ public class GardenService {
         garden.setUser(user);
         garden.setPlant(plant);
         garden.setNickname(uniqueNickname);
+        garden.setDateAdded(LocalDateTime.now());
         garden.setType(request.getType());
         garden.setPotType(request.getPotType());
         garden.setStatus(request.getStatus() != null ? request.getStatus() : GardenStatus.ALIVE);
@@ -154,8 +155,9 @@ public class GardenService {
         GardenResponse response = new GardenResponse();
         response.setId(garden.getId());
         response.setNickname(garden.getNickname());
-        response.setPlantName(garden.getPlant() != null ? garden.getPlant().getCommonName() : null);
+        response.setPlant(garden.getPlant());
         response.setStatus(garden.getStatus());
+        response.setDateAdded(garden.getDateAdded());
         response.setType(garden.getType());
         response.setPotType(garden.getPotType());
         response.setDiseaseNames(garden.getDiseases().stream()
