@@ -8,9 +8,12 @@ import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.GardenScheduleService;
 import com.example.plant_sever.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -72,5 +75,23 @@ public class GardenScheduleController {
         List<GardenScheduleResponse> schedules =
                 scheduleService.generateWeeklyWateringSchedule(gardenId, lat, lon);
         return ResponseEntity.ok(schedules);
+    }
+
+    @GetMapping("/garden/{gardenId}/date")
+    public ResponseEntity<List<GardenScheduleResponse>> getByGardenAndDate(
+            @PathVariable Long gardenId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        List<GardenScheduleResponse> schedules = scheduleService.getByGardenAndDate(gardenId, date);
+        return ResponseEntity.ok(schedules);
+    }
+
+    @GetMapping("/exists")
+    public ResponseEntity<Boolean> checkScheduleExists(
+            @RequestParam Long gardenId,
+            @RequestParam String scheduledTime) {
+
+        boolean exists = scheduleService.existsSchedule(gardenId, scheduledTime);
+        return ResponseEntity.ok(exists);
     }
 }

@@ -31,4 +31,10 @@ public class User {
 
     @Column(name = "phone_number", nullable = true)
     private String phoneNumber;
+
+    @Column(name="lat", nullable = true)
+    private String lat;
+
+    @Column(name="lon", nullable = true)
+    private String lon;
 }

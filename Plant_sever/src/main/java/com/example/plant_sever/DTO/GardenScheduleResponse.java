@@ -20,7 +20,9 @@ public class GardenScheduleResponse {
     private LocalDateTime scheduledTime;
     private Completion completion;
     private String note;
-    private Double waterAmount;
+    private Double waterAmount; // for watering
+    private Double fertilityAmount;
+    private String fertilityType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

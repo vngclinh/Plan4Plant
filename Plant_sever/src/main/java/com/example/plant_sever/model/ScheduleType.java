@@ -4,7 +4,7 @@ public enum ScheduleType {
     WATERING,
     FERTILIZING,
     PRUNING,
-    HARVESTING,
-    MIST
+    MIST,
+    OTHER
 }
 

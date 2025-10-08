@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,30 +31,55 @@ public class GardenScheduleService {
     private final MeteosourceClient meteosourceClient;
     private final WeatherRepo weatherRepository;
 
+    public boolean existsSchedule(Long gardenId, String scheduledTimeStr) {
+        LocalDateTime scheduledTime;
+        try {
+            scheduledTime = LocalDateTime.parse(scheduledTimeStr); // expects ISO format: yyyy-MM-ddTHH:mm:ss
+        } catch (DateTimeParseException e) {
+            throw new RuntimeException("Invalid datetime format");
+        }
+
+        // Use findSchedulesBetween with start = scheduledTime, end = scheduledTime
+        List<GardenSchedule> schedules = scheduleRepository.findSchedulesBetween(
+                gardenId,
+                scheduledTime,
+                scheduledTime
+        );
+
+        return !schedules.isEmpty();
+    }
+
     public GardenScheduleResponse create(GardenScheduleRequest request) {
         Garden garden = gardenRepository.findById(request.getGardenId())
                 .orElseThrow(() -> new RuntimeException("Garden not found"));
 
-        // check if schedule already exists for same garden + time
+        // Check if a schedule already exists for the same garden + time
         Optional<GardenSchedule> existing = scheduleRepository.findByGardenAndScheduledTime(
                 garden, request.getScheduledTime()
         );
 
         GardenSchedule schedule;
         if (existing.isPresent()) {
-            // overwrite
+            // Overwrite all fields
             schedule = existing.get();
             schedule.setType(request.getType());
+            schedule.setScheduledTime(request.getScheduledTime());
             schedule.setCompletion(request.getCompletion() != null ? request.getCompletion() : Completion.NotDone);
             schedule.setNote(request.getNote());
+            schedule.setWaterAmount(request.getWaterAmount());
+            schedule.setFertilityAmount(request.getFertilityAmount());
+            schedule.setFertilityType(request.getFertilityType());
         } else {
-            // create new
+            // Create new schedule
             schedule = GardenSchedule.builder()
                     .garden(garden)
                     .type(request.getType())
                     .scheduledTime(request.getScheduledTime())
                     .completion(request.getCompletion() != null ? request.getCompletion() : Completion.NotDone)
                     .note(request.getNote())
+                    .waterAmount(request.getWaterAmount())
+                    .fertilityAmount(request.getFertilityAmount())
+                    .fertilityType(request.getFertilityType())
                     .build();
         }
 
@@ -96,6 +122,17 @@ public class GardenScheduleService {
                 .collect(Collectors.toList());
     }
 
+    public List<GardenScheduleResponse> getByGardenAndDate(Long gardenId, LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(23, 59, 59);
+
+        return scheduleRepository.findSchedulesBetween(gardenId, startOfDay, endOfDay)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+
     private GardenScheduleResponse toResponse(GardenSchedule schedule) {
         Garden garden = schedule.getGarden();
         Plant plant = garden.getPlant();
@@ -111,6 +148,8 @@ public class GardenScheduleService {
                 .completion(schedule.getCompletion())
                 .note(schedule.getNote())
                 .waterAmount(schedule.getWaterAmount())
+                .fertilityType(schedule.getFertilityType())
+                .fertilityAmount(schedule.getFertilityAmount())
                 .createdAt(schedule.getCreatedAt())
                 .updatedAt(schedule.getUpdatedAt())
                 .build();
