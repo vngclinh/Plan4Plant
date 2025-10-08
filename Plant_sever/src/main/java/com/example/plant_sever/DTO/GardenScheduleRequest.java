@@ -17,5 +17,7 @@ public class GardenScheduleRequest {
     private Completion completion;   // optional, defaults to NotDone
     private String note;
     private Double waterAmount;      // optional, default to plant.waterAmount()
+    private Double fertilityAmount;
+    private String fertilityType;
 }
 

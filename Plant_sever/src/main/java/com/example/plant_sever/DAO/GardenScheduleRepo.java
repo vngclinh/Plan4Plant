@@ -30,4 +30,5 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
     List<GardenSchedule> findSchedulesBetween(@Param("gardenId") Long gardenId,
                                               @Param("startDate") LocalDateTime startDate,
                                               @Param("endDate") LocalDateTime endDate);
+
 }
