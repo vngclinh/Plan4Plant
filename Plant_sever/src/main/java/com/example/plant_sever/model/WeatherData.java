@@ -18,7 +18,7 @@ public class WeatherData {
     private Long id;
 
     private LocalDate date;
-    private double precipitationMm;
-    private double temperatureMax;
-    private double temperatureMin;
+    private Double precipitationMm;
+    private Double temperatureMax;
+    private Double temperatureMin;
 }

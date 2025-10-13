@@ -43,11 +43,11 @@ public class GardenService {
                 .orElseThrow(() -> new RuntimeException("Plant not found"));
 
         // Generate unique nickname
-        String uniqueNickname = generateUniqueNickname(user, request.getNickname());
 
         Garden garden = new Garden();
         garden.setUser(user);
         garden.setPlant(plant);
+        String uniqueNickname = generateUniqueNickname(user, garden.getPlant().getCommonName());
         garden.setNickname(uniqueNickname);
         garden.setDateAdded(LocalDateTime.now());
         garden.setType(request.getType());
@@ -137,7 +137,7 @@ public class GardenService {
 
     private String generateUniqueNickname(User user, String baseNickname) {
         if (baseNickname == null || baseNickname.isBlank()) {
-            baseNickname = "My Garden";
+            baseNickname = "My Plant";
         }
 
         String nickname = baseNickname.trim();
