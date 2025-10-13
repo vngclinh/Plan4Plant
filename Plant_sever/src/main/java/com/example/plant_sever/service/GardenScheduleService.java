@@ -3,10 +3,12 @@ package com.example.plant_sever.service;
 import com.example.plant_sever.DAO.GardenRepo;
 import com.example.plant_sever.DAO.GardenScheduleRepo;
 
+import com.example.plant_sever.DAO.UserRepo;
 import com.example.plant_sever.DAO.WeatherRepo;
 import com.example.plant_sever.DTO.GardenScheduleRequest;
 import com.example.plant_sever.DTO.GardenScheduleResponse;
 import com.example.plant_sever.DTO.WeatherForecastDTO;
+import com.example.plant_sever.Security.JwtUtils;
 import com.example.plant_sever.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,8 @@ public class GardenScheduleService {
     private final GardenRepo gardenRepository;
     private final MeteosourceClient meteosourceClient;
     private final WeatherRepo weatherRepository;
+    private final JwtUtils jwtUtils;
+    private final UserRepo userRepo;
 
     public boolean existsSchedule(Long gardenId, String scheduledTimeStr) {
         LocalDateTime scheduledTime;
@@ -53,25 +57,8 @@ public class GardenScheduleService {
         Garden garden = gardenRepository.findById(request.getGardenId())
                 .orElseThrow(() -> new RuntimeException("Garden not found"));
 
-        // Check if a schedule already exists for the same garden + time
-        Optional<GardenSchedule> existing = scheduleRepository.findByGardenAndScheduledTime(
-                garden, request.getScheduledTime()
-        );
-
         GardenSchedule schedule;
-        if (existing.isPresent()) {
-            // Overwrite all fields
-            schedule = existing.get();
-            schedule.setType(request.getType());
-            schedule.setScheduledTime(request.getScheduledTime());
-            schedule.setCompletion(request.getCompletion() != null ? request.getCompletion() : Completion.NotDone);
-            schedule.setNote(request.getNote());
-            schedule.setWaterAmount(request.getWaterAmount());
-            schedule.setFertilityAmount(request.getFertilityAmount());
-            schedule.setFertilityType(request.getFertilityType());
-        } else {
-            // Create new schedule
-            schedule = GardenSchedule.builder()
+        schedule = GardenSchedule.builder()
                     .garden(garden)
                     .type(request.getType())
                     .scheduledTime(request.getScheduledTime())
@@ -81,7 +68,6 @@ public class GardenScheduleService {
                     .fertilityAmount(request.getFertilityAmount())
                     .fertilityType(request.getFertilityType())
                     .build();
-        }
 
         return toResponse(scheduleRepository.save(schedule));
     }
@@ -181,11 +167,16 @@ public class GardenScheduleService {
         List<GardenSchedule> recentSchedules = scheduleRepository.findSchedulesBetween(
                 gardenId, periodStart, today.atTime(23, 59)
         );
-        LocalDateTime lastWatered = recentSchedules.stream()
-                .filter(s -> s.getType() == ScheduleType.WATERING && s.getCompletion() != Completion.Skipped)
-                .map(GardenSchedule::getScheduledTime)
-                .max(LocalDateTime::compareTo)
-                .orElse(null);
+
+        LocalDateTime lastWatered = null;
+
+        if (recentSchedules != null && !recentSchedules.isEmpty()) {
+            lastWatered = recentSchedules.stream()
+                    .filter(s -> s.getType() == ScheduleType.WATERING && s.getCompletion() != Completion.Skipped)
+                    .map(GardenSchedule::getScheduledTime)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+        }
 
         System.out.println("=== Last Watered: " + lastWatered + " ===");
 
@@ -197,10 +188,15 @@ public class GardenScheduleService {
         double cumulativeRain = 0;
         if (isOutdoor && lastWatered != null) {
             LocalDate startDate = lastWatered.toLocalDate().plusDays(1);
-            cumulativeRain = weatherRepository.findByDateBetween(startDate, today)
-                    .stream()
-                    .mapToDouble(w -> w.getPrecipitationMm() * potAreaM2 * 1000)
-                    .sum();
+            List<WeatherData> rains = weatherRepository.findByDateBetween(startDate, today);
+
+            if (rains == null || rains.isEmpty()) {
+                cumulativeRain = 0;
+            } else {
+                cumulativeRain = rains.stream()
+                        .mapToDouble(w -> w.getPrecipitationMm() * potAreaM2 * 1000)
+                        .sum();
+            }
         }
 
         System.out.println("Initial cumulative rain: " + cumulativeRain + " ml");
@@ -292,7 +288,7 @@ public class GardenScheduleService {
             nextPossibleWatering = lastWatered.plusDays(plant.getMinInterval());
 
             // --- Mist logic ---
-            if (plant.getMaxTemperature() != null && day.getMaxTemperature() > plant.getMaxTemperature()) {
+            if (plant.getMaxTemperature() != null && plant.getMinTemperature()!=null && day.getMaxTemperature() > (plant.getMaxTemperature()+plant.getMinTemperature())/2) {
                 GardenSchedule noonMist = GardenSchedule.builder()
                         .garden(garden)
                         .type(ScheduleType.MIST)
@@ -316,6 +312,33 @@ public class GardenScheduleService {
         }
 
         return results;
+    }
+
+    public List<GardenScheduleResponse> getUserSchedulesByDate(String token, LocalDate date) {
+        // 🔹 Clean token
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        // 🔹 Extract username from JWT
+        String username = jwtUtils.getUsernameFromJwt(token);
+
+        // 🔹 Find the user by username
+        User user = userRepo.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 🔹 Define date range (start and end of selected day)
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(23, 59, 59);
+
+        // 🔹 Query schedules for that user's gardens
+        List<GardenSchedule> schedules = scheduleRepository.findByUserAndDate(
+                user.getId(), startOfDay, endOfDay);
+
+        // 🔹 Convert to response
+        return schedules.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
 }

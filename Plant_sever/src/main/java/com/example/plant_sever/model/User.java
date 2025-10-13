@@ -32,9 +32,7 @@ public class User {
     @Column(name = "phone_number", nullable = true)
     private String phoneNumber;
 
-    @Column(name="lat", nullable = true)
-    private String lat;
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 
-    @Column(name="lon", nullable = true)
-    private String lon;
 }

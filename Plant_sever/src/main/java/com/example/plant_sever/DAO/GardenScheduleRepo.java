@@ -31,4 +31,16 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
                                               @Param("startDate") LocalDateTime startDate,
                                               @Param("endDate") LocalDateTime endDate);
 
+    @Query("""
+        SELECT gs 
+        FROM GardenSchedule gs 
+        WHERE gs.garden.user.id = :userId 
+          AND gs.scheduledTime BETWEEN :start AND :end
+        """)
+    List<GardenSchedule> findByUserAndDate(
+            @Param("userId") Long userId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
 }

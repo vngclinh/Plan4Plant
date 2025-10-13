@@ -94,4 +94,13 @@ public class GardenScheduleController {
         boolean exists = scheduleService.existsSchedule(gardenId, scheduledTime);
         return ResponseEntity.ok(exists);
     }
+
+    @GetMapping("/by-date")
+    public ResponseEntity<List<GardenScheduleResponse>> getUserSchedulesByDate(
+            @RequestHeader("Authorization") String token,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        List<GardenScheduleResponse> schedules = scheduleService.getUserSchedulesByDate(token, date);
+        return ResponseEntity.ok(schedules);
+    }
 }
