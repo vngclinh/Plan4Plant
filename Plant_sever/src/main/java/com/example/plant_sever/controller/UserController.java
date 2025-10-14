@@ -2,7 +2,8 @@ package com.example.plant_sever.controller;
 
 import com.example.plant_sever.DAO.UserRepo;
 import com.example.plant_sever.DTO.ChangepasswordRequest;
-import com.example.plant_sever.DTO.UserProfileResponse;
+import com.example.plant_sever.DTO.UpdateUserRequest;
+
 import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.CloudinaryService;
 import com.example.plant_sever.service.UserService;
@@ -76,18 +77,14 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "User not found"));
         }
-
-        UserProfileResponse response = UserProfileResponse.builder()
-                .id(user.get().getId())
-                .username(user.get().getUsername())
-                .fullname(user.get().getFullname())
-                .email(user.get().getEmail())
-                .phone(user.get().getPhoneNumber())
-                .avatarUrl(user.get().getAvatarUrl())
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(user);
     }
 
+    @PutMapping("/me")
+    public ResponseEntity<User> updateUserProfile(@RequestBody UpdateUserRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
+        User updatedUser = userService.updateUser(username, request);
+        return ResponseEntity.ok(updatedUser);
+    }
 }
