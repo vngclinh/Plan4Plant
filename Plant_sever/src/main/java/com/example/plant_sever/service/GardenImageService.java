@@ -43,9 +43,13 @@ public class GardenImageService {
         }
 
         try {
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
-                    ObjectUtils.asMap("folder", "garden_images"));
-
+            Map uploadResult = cloudinary.uploader().upload(
+                file.getBytes(),
+                ObjectUtils.asMap(
+                    "folder", "garden_images/" + gardenId, // 👈 mỗi garden 1 thư mục riêng
+                    "resource_type", "image"
+                )
+            );
             String imageUrl = (String) uploadResult.get("secure_url");
 
             GardenImage gardenImage = new GardenImage();
@@ -55,7 +59,7 @@ public class GardenImageService {
 
             return gardenImageRepo.save(gardenImage);
         } catch (Exception e) {
-            throw new RuntimeException("Image upload failed", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Image upload failed");
         }
     }
 
@@ -86,12 +90,20 @@ public class GardenImageService {
         }
     }
 
-    // Helper: tách public_id từ URL Cloudinary
     private String extractPublicId(String url) {
-        // Ví dụ: https://res.cloudinary.com/demo/image/upload/v123456789/garden_images/abc123.jpg
-        String[] parts = url.split("/");
-        String fileName = parts[parts.length - 1]; // abc123.jpg
-        String folder = parts[parts.length - 2];   // garden_images
-        return folder + "/" + fileName.substring(0, fileName.lastIndexOf('.')); // garden_images/abc123
+        // URL mẫu: https://res.cloudinary.com/demo/image/upload/v123456789/garden_images/3/abc123.jpg
+        int uploadIndex = url.indexOf("/upload/");
+        if (uploadIndex == -1) {
+            throw new RuntimeException("Invalid Cloudinary URL format");
+        }
+
+        String publicPart = url.substring(uploadIndex + 8); // bỏ qua "/upload/"
+        // Bỏ version nếu có (v12345/)
+        if (publicPart.startsWith("v")) {
+            publicPart = publicPart.substring(publicPart.indexOf("/") + 1);
+        }
+
+        // Bỏ phần mở rộng file (.jpg/.png)
+        return publicPart.substring(0, publicPart.lastIndexOf('.'));
     }
 }

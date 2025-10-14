@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.example.plant_sever.DAO.DiseaseRepo;
 import com.example.plant_sever.DTO.GardenResponse;
+import com.example.plant_sever.DTO.GardenUpdateRequest;
 import com.example.plant_sever.model.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -75,7 +76,7 @@ public class GardenService {
     }
 
     @Transactional
-    public GardenResponse updateGarden(Long gardenId, AddGardenRequest request) {
+    public GardenResponse updateGarden(Long gardenId, GardenUpdateRequest request) {
         String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -87,7 +88,6 @@ public class GardenService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your garden");
         }
 
-        // Update nickname with uniqueness check
         if (request.getNickname() != null) {
             String newNickname = request.getNickname().trim();
             if (!newNickname.equals(garden.getNickname())) {
@@ -100,19 +100,11 @@ public class GardenService {
         if (request.getType() != null) garden.setType(request.getType());
         if (request.getPotType() != null) garden.setPotType(request.getPotType());
 
-        // Update diseases
         if (request.getDiseaseIds() != null) {
             List<Disease> diseases = request.getDiseaseIds().isEmpty() ?
                     new ArrayList<>() :
                     diseaseRepo.findAllById(request.getDiseaseIds());
             garden.setDiseases(diseases);
-        }
-
-        // Update plant if provided
-        if (request.getPlantId() != null) {
-            Plant plant = plantRepo.findById(request.getPlantId())
-                    .orElseThrow(() -> new RuntimeException("Plant not found"));
-            garden.setPlant(plant);
         }
 
         return toResponse(gardenRepo.save(garden));
