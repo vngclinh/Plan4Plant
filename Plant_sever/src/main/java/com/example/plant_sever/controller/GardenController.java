@@ -33,9 +33,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 @RequiredArgsConstructor
 public class GardenController {
     private final GardenService gardenService;
-    private final UserRepo userRepo;
-    private final GardenRepo gardenRepo;
-    private final PlantRepo plantRepo;
 
     @PostMapping("/add")
     public ResponseEntity<GardenResponse> addPlantToGarden(@RequestBody AddGardenRequest request) {
