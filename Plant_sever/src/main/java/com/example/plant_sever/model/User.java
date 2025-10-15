@@ -38,7 +38,7 @@ public class User {
     @Column(name = "lat")
     private Double lat;
 
-    @Column(name = "lon")
+    @Column(name="lon")
     private Double lon;
 
 }
