@@ -30,7 +30,7 @@ public class Garden {
     private LocalDateTime dateAdded;
 
     @Enumerated(EnumType.STRING)
-    private GardenType type = GardenType.Indoor;
+    private GardenType type;
 
     @Enumerated(EnumType.STRING)
     private GardenStatus status = GardenStatus.ALIVE;
@@ -39,7 +39,7 @@ public class Garden {
     private List<GardenImage> images = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
-    private PotType potType = PotType.MEDIUM; // default pot type
+    private PotType potType;
 
     @ManyToMany
     @JoinTable(

@@ -43,20 +43,26 @@ public class GardenService {
         Plant plant = plantRepo.findById(request.getPlantId())
                 .orElseThrow(() -> new RuntimeException("Plant not found"));
 
-        // Generate unique nickname
-
         Garden garden = new Garden();
         garden.setUser(user);
         garden.setPlant(plant);
-        String uniqueNickname = generateUniqueNickname(user, garden.getPlant().getCommonName());
-        garden.setNickname(uniqueNickname);
-        garden.setDateAdded(LocalDateTime.now());
-        garden.setType(request.getType());
-        garden.setPotType(request.getPotType());
+
+        //  nickname: nếu user nhập, dùng luôn, còn không thì fallback auto
+        if (request.getNickname() != null && !request.getNickname().isEmpty()) {
+            garden.setNickname(request.getNickname());
+        } else {
+            String uniqueNickname = generateUniqueNickname(user, plant.getCommonName());
+            garden.setNickname(uniqueNickname);
+        }
+
+        //  type và potType: dùng dữ liệu người dùng gửi
+        garden.setType(request.getType() != null ? request.getType() : GardenType.Indoor);
+        garden.setPotType(request.getPotType() != null ? request.getPotType() : PotType.MEDIUM);
+
         garden.setStatus(request.getStatus() != null ? request.getStatus() : GardenStatus.ALIVE);
         garden.setDateAdded(LocalDateTime.now());
 
-        // Handle optional disease IDs
+        // bệnh (nếu có)
         garden.setDiseases(new ArrayList<>());
         if (request.getDiseaseIds() != null && !request.getDiseaseIds().isEmpty()) {
             List<Disease> diseases = diseaseRepo.findAllById(request.getDiseaseIds());
