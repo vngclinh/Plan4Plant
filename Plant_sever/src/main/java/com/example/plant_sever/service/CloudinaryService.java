@@ -37,4 +37,19 @@ public class CloudinaryService {
             throw new RuntimeException("Error uploading image to Cloudinary", e);
         }
     }
+
+    public String uploadGardenImage(Long gardenId, MultipartFile file) {
+        try {
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", "garden_images/" + gardenId, //  mỗi cây 1 folder
+                            "resource_type", "image"
+                    ));
+
+            return uploadResult.get("secure_url").toString(); // HTTPS URL
+        } catch (IOException e) {
+            throw new RuntimeException("Error uploading garden image to Cloudinary", e);
+        }
+    }
+
 }

@@ -13,7 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class WeatherForecastDTO {
     private LocalDate date;
-    private double precipitation;
+    private Double  precipitation;
     private Double maxTemperature; // maximum temperature of the day
     private Double minTemperature; // optional, if needed
 
