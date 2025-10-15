@@ -17,6 +17,8 @@ public class WeatherData {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String regionKey;
+
     private LocalDate date;
     private Double precipitationMm;
     private Double temperatureMax;

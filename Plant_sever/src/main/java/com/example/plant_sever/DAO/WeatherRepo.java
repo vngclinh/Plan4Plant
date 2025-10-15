@@ -11,7 +11,8 @@ import java.util.Collection;
 import java.util.List;
 @Repository
 public interface WeatherRepo extends JpaRepository<WeatherData, Long> {
-    List<WeatherData> findByDateBetween(
-                LocalDate start, LocalDate end);
+    List<WeatherData> findByRegionKeyAndDateBetween(String regionKey, LocalDate start, LocalDate end);
+    boolean existsByRegionKeyAndDate(String regionKey, LocalDate date);
+
 
 }

@@ -38,7 +38,7 @@ public class GardenScheduleService {
     public boolean existsSchedule(Long gardenId, String scheduledTimeStr) {
         LocalDateTime scheduledTime;
         try {
-            scheduledTime = LocalDateTime.parse(scheduledTimeStr); // expects ISO format: yyyy-MM-ddTHH:mm:ss
+            scheduledTime = LocalDateTime.parse(scheduledTimeStr);
         } catch (DateTimeParseException e) {
             throw new RuntimeException("Invalid datetime format");
         }
@@ -174,7 +174,11 @@ public class GardenScheduleService {
         LocalDate today = LocalDate.now();
         LocalDateTime periodStart = today.minusDays(maxInterval).atStartOfDay();
 
-        // Find last watering
+        double roundedLat = Math.round(lat * 100.0) / 100.0;
+        double roundedLon = Math.round(lon * 100.0) / 100.0;
+        String regionKey = roundedLat + "," + roundedLon;
+
+        // --- Find last watering ---
         List<GardenSchedule> recentSchedules = scheduleRepository.findSchedulesBetween(
                 gardenId, periodStart, today.atTime(23, 59)
         );
@@ -197,7 +201,7 @@ public class GardenScheduleService {
         double cumulativeRain = 0;
         if (isOutdoor && lastWatered != null) {
             LocalDate startDate = lastWatered.toLocalDate().plusDays(1);
-            List<WeatherData> rains = weatherRepository.findByDateBetween(startDate, today);
+            List<WeatherData> rains = weatherRepository.findByRegionKeyAndDateBetween(regionKey, startDate, today);
 
             if (rains != null && !rains.isEmpty()) {
                 cumulativeRain = rains.stream()

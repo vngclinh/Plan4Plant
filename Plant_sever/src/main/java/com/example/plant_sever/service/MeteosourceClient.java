@@ -1,5 +1,6 @@
 package com.example.plant_sever.service;
 
+import com.example.plant_sever.DTO.MeteosourceCurrentResponse;
 import com.example.plant_sever.DTO.MeteosourceDailyResponse;
 import com.example.plant_sever.DTO.WeatherForecastDTO;
 import lombok.RequiredArgsConstructor;
@@ -51,4 +52,29 @@ public class MeteosourceClient {
                 ))
                 .collect(Collectors.toList());
     }
+
+    public WeatherForecastDTO getCurrentWeather(double lat, double lon) {
+        String url = String.format(
+                Locale.US,
+                "%s?lat=%.4f&lon=%.4f&sections=current&key=%s",
+                baseUrl, lat, lon, apiKey
+        );
+
+        MeteosourceCurrentResponse response = restTemplate.getForObject(url, MeteosourceCurrentResponse.class);
+
+        if (response == null || response.getCurrent() == null) {
+            throw new RuntimeException("No current weather data available for location: " + lat + "," + lon);
+        }
+
+        MeteosourceCurrentResponse.Current c = response.getCurrent();
+
+        return new WeatherForecastDTO(
+                LocalDate.now(),
+                c.getPrecipitation() != null ? c.getPrecipitation().getTotal() : 0.0,
+                c.getTemperature_max() != null ? c.getTemperature_max() : c.getTemperature(),
+                c.getTemperature_min() != null ? c.getTemperature_min() : c.getTemperature()
+        );
+    }
+
+
 }
