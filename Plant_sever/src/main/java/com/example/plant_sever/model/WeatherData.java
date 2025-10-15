@@ -20,7 +20,7 @@ public class WeatherData {
     private String regionKey;
 
     private LocalDate date;
-    private double precipitationMm;
-    private double temperatureMax;
-    private double temperatureMin;
+    private Double precipitationMm;
+    private Double temperatureMax;
+    private Double temperatureMin;
 }

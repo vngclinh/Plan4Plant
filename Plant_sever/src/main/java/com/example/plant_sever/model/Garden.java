@@ -48,4 +48,6 @@ public class Garden {
             inverseJoinColumns = @JoinColumn(name = "disease_id")
     )
     private List<Disease> diseases = new ArrayList<>();
+    @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GardenSchedule> schedules = new ArrayList<>();
 }

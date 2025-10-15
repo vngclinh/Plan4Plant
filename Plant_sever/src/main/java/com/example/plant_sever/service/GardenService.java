@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.example.plant_sever.DAO.DiseaseRepo;
 import com.example.plant_sever.DTO.GardenResponse;
+import com.example.plant_sever.DTO.GardenUpdateRequest;
 import com.example.plant_sever.model.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -43,11 +44,11 @@ public class GardenService {
                 .orElseThrow(() -> new RuntimeException("Plant not found"));
 
         // Generate unique nickname
-        String uniqueNickname = generateUniqueNickname(user, request.getNickname());
 
         Garden garden = new Garden();
         garden.setUser(user);
         garden.setPlant(plant);
+        String uniqueNickname = generateUniqueNickname(user, garden.getPlant().getCommonName());
         garden.setNickname(uniqueNickname);
         garden.setDateAdded(LocalDateTime.now());
         garden.setType(request.getType());
@@ -75,7 +76,7 @@ public class GardenService {
     }
 
     @Transactional
-    public GardenResponse updateGarden(Long gardenId, AddGardenRequest request) {
+    public GardenResponse updateGarden(Long gardenId, GardenUpdateRequest request) {
         String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -87,7 +88,6 @@ public class GardenService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your garden");
         }
 
-        // Update nickname with uniqueness check
         if (request.getNickname() != null) {
             String newNickname = request.getNickname().trim();
             if (!newNickname.equals(garden.getNickname())) {
@@ -100,19 +100,11 @@ public class GardenService {
         if (request.getType() != null) garden.setType(request.getType());
         if (request.getPotType() != null) garden.setPotType(request.getPotType());
 
-        // Update diseases
         if (request.getDiseaseIds() != null) {
             List<Disease> diseases = request.getDiseaseIds().isEmpty() ?
                     new ArrayList<>() :
                     diseaseRepo.findAllById(request.getDiseaseIds());
             garden.setDiseases(diseases);
-        }
-
-        // Update plant if provided
-        if (request.getPlantId() != null) {
-            Plant plant = plantRepo.findById(request.getPlantId())
-                    .orElseThrow(() -> new RuntimeException("Plant not found"));
-            garden.setPlant(plant);
         }
 
         return toResponse(gardenRepo.save(garden));
@@ -137,7 +129,7 @@ public class GardenService {
 
     private String generateUniqueNickname(User user, String baseNickname) {
         if (baseNickname == null || baseNickname.isBlank()) {
-            baseNickname = "My Garden";
+            baseNickname = "My Plant";
         }
 
         String nickname = baseNickname.trim();

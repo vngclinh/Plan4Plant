@@ -160,8 +160,19 @@ public class GardenScheduleService {
         boolean isOutdoor = garden.getType() == GardenType.Outdoor;
         double potAreaM2 = garden.getPotType() != null ? garden.getPotType().getArea() : 0.01;
 
+        // ---- NULL-SAFE: interval ----
+        int minInterval = plant.getMinInterval() != null ? plant.getMinInterval() : 7;
+        int maxInterval = plant.getMaxInterval() != null ? plant.getMaxInterval() : minInterval;
+
+        // ---- NULL-SAFE: plant water amount ----
+        double plantWaterMl = plant.getWaterAmount() != null ? plant.getWaterAmount() : 0.6;
+
+        // ---- NULL-SAFE: plant temp threshold ----
+        Double pTmax = plant.getMaxTemperature();
+        Double pTmin = plant.getMinTemperature();
+
         LocalDate today = LocalDate.now();
-        LocalDateTime periodStart = today.minusDays(plant.getMaxInterval()).atStartOfDay();
+        LocalDateTime periodStart = today.minusDays(maxInterval).atStartOfDay();
 
         double roundedLat = Math.round(lat * 100.0) / 100.0;
         double roundedLon = Math.round(lon * 100.0) / 100.0;
@@ -173,7 +184,6 @@ public class GardenScheduleService {
         );
 
         LocalDateTime lastWatered = null;
-
         if (recentSchedules != null && !recentSchedules.isEmpty()) {
             lastWatered = recentSchedules.stream()
                     .filter(s -> s.getType() == ScheduleType.WATERING && s.getCompletion() != Completion.Skipped)
@@ -181,33 +191,29 @@ public class GardenScheduleService {
                     .max(LocalDateTime::compareTo)
                     .orElse(null);
         }
-
         System.out.println("=== Last Watered: " + lastWatered + " ===");
 
         LocalDateTime nextPossibleWatering = (lastWatered != null)
-                ? lastWatered.plusDays(plant.getMinInterval())
+                ? lastWatered.plusDays(minInterval)
                 : today.atStartOfDay();
 
-        // --- Calculate historical rain for outdoor gardens ---
+        // Historical rain for outdoor
         double cumulativeRain = 0;
         if (isOutdoor && lastWatered != null) {
             LocalDate startDate = lastWatered.toLocalDate().plusDays(1);
             List<WeatherData> rains = weatherRepository.findByRegionKeyAndDateBetween(regionKey, startDate, today);
 
-            if (rains == null || rains.isEmpty()) {
-                cumulativeRain = 0;
-            } else {
+            if (rains != null && !rains.isEmpty()) {
                 cumulativeRain = rains.stream()
-                        .mapToDouble(w -> w.getPrecipitationMm() * potAreaM2 * 1000)
+                        .mapToDouble(w -> (w.getPrecipitationMm() != null ? w.getPrecipitationMm() : 0.0) * potAreaM2 * 1000)
                         .sum();
             }
         }
-
         System.out.println("Initial cumulative rain: " + cumulativeRain + " ml");
 
         List<GardenScheduleResponse> results = new ArrayList<>();
 
-        // --- Forecast next 7 days ---
+        // Forecast next 7 days
         List<WeatherForecastDTO> forecast = meteosourceClient.get7DayForecast(lat, lon);
         LocalDateTime forecastEnd = today.plusDays(6).atTime(23, 59);
 
@@ -219,15 +225,19 @@ public class GardenScheduleService {
         for (WeatherForecastDTO day : forecast) {
             LocalDate forecastDate = day.getDate();
 
-            // --- Determine if minInterval is satisfied ---
+            // ---- NULL-SAFE: forecast fields ----
+            double dayPrecip = day.getPrecipitation() != null ? day.getPrecipitation() : 0.0;
+            Double dayTmaxObj = day.getMaxTemperature();
+            Double dayTminObj = day.getMinTemperature();
+
+            // Determine if minInterval is satisfied
             if (forecastDate.atStartOfDay().isBefore(nextPossibleWatering)) {
                 if (isOutdoor) {
-                    // Accumulate rainfall even if we can't water yet
-                    double rainMl = day.getPrecipitation() * potAreaM2 * 1000;
+                    double rainMl = dayPrecip * potAreaM2 * 1000;
                     double scheduledWaterMl = existingSchedules.stream()
                             .filter(s -> s.getType() == ScheduleType.WATERING &&
                                     s.getScheduledTime().toLocalDate().equals(forecastDate))
-                            .mapToDouble(s -> s.getWaterAmount() != null ? s.getWaterAmount() : 0)
+                            .mapToDouble(s -> s.getWaterAmount() != null ? s.getWaterAmount() : 0.0)
                             .sum();
                     cumulativeRain += rainMl + scheduledWaterMl;
                 }
@@ -237,18 +247,17 @@ public class GardenScheduleService {
 
             double waterNeeded;
             if (isOutdoor) {
-                // --- Outdoor: consider cumulative rain ---
-                double rainMl = day.getPrecipitation() * potAreaM2 * 1000;
+                double rainMl = dayPrecip * potAreaM2 * 1000;
                 double scheduledWaterMl = existingSchedules.stream()
                         .filter(s -> s.getType() == ScheduleType.WATERING &&
                                 s.getScheduledTime().toLocalDate().equals(forecastDate))
-                        .mapToDouble(s -> s.getWaterAmount() != null ? s.getWaterAmount() : 0)
+                        .mapToDouble(s -> s.getWaterAmount() != null ? s.getWaterAmount() : 0.0)
                         .sum();
                 double totalRain = rainMl + scheduledWaterMl;
 
                 System.out.println(forecastDate + ": cumulativeRain before watering: " + cumulativeRain + " ml, forecast rain: " + rainMl + " ml, scheduled water: " + scheduledWaterMl + " ml");
 
-                waterNeeded = Math.max(0, plant.getWaterAmount() - cumulativeRain);
+                waterNeeded = Math.max(0, plantWaterMl - cumulativeRain);
 
                 if (waterNeeded > 0) {
                     GardenSchedule schedule = GardenSchedule.builder()
@@ -271,8 +280,8 @@ public class GardenScheduleService {
                 System.out.println(forecastDate + ": waterScheduled: " + waterNeeded + " ml, cumulativeRain after watering: " + cumulativeRain + " ml");
 
             } else {
-                // --- Indoor: ignore rain, schedule full plantWaterAmount if minInterval passed ---
-                waterNeeded = plant.getWaterAmount();
+                // Indoor
+                waterNeeded = plantWaterMl;
                 GardenSchedule schedule = GardenSchedule.builder()
                         .garden(garden)
                         .type(ScheduleType.WATERING)
@@ -289,29 +298,38 @@ public class GardenScheduleService {
 
             // Update last watered and next possible watering
             lastWatered = forecastDate.atStartOfDay();
-            nextPossibleWatering = lastWatered.plusDays(plant.getMinInterval());
+            nextPossibleWatering = lastWatered.plusDays(minInterval);
 
-            // --- Mist logic ---
-            if (plant.getMaxTemperature() != null && plant.getMinTemperature()!=null && day.getMaxTemperature() > (plant.getMaxTemperature()+plant.getMinTemperature())/2) {
-                GardenSchedule noonMist = GardenSchedule.builder()
-                        .garden(garden)
-                        .type(ScheduleType.MIST)
-                        .scheduledTime(forecastDate.atTime(12, 0))
-                        .completion(Completion.NotDone)
-                        .note("Auto-generated mist due to high temperature (" + day.getMaxTemperature() + "°C)")
-                        .build();
-                scheduleRepository.save(noonMist);
-                results.add(toResponse(noonMist));
+            // ---- MIST LOGIC (NULL-SAFE) ----
+            // Chỉ xét khi cả ngưỡng của cây (pTmax, pTmin) đều có
+            if (pTmax != null && pTmin != null && dayTmaxObj != null) {
+                double threshold = (pTmax + pTmin) / 2.0;
+                if (dayTmaxObj > threshold) {
+                    GardenSchedule noonMist = GardenSchedule.builder()
+                            .garden(garden)
+                            .type(ScheduleType.MIST)
+                            .scheduledTime(forecastDate.atTime(12, 0))
+                            .completion(Completion.NotDone)
+                            .note("Auto-generated mist due to high temperature (" + dayTmaxObj + "°C)")
+                            .build();
+                    scheduleRepository.save(noonMist);
+                    results.add(toResponse(noonMist));
 
-                GardenSchedule eveningMist = GardenSchedule.builder()
-                        .garden(garden)
-                        .type(ScheduleType.MIST)
-                        .scheduledTime(forecastDate.atTime(18, 0))
-                        .completion(Completion.NotDone)
-                        .note("Auto-generated mist due to high temperature (" + day.getMaxTemperature() + "°C)")
-                        .build();
-                scheduleRepository.save(eveningMist);
-                results.add(toResponse(eveningMist));
+                    GardenSchedule eveningMist = GardenSchedule.builder()
+                            .garden(garden)
+                            .type(ScheduleType.MIST)
+                            .scheduledTime(forecastDate.atTime(18, 0))
+                            .completion(Completion.NotDone)
+                            .note("Auto-generated mist due to high temperature (" + dayTmaxObj + "°C)")
+                            .build();
+                    scheduleRepository.save(eveningMist);
+                    results.add(toResponse(eveningMist));
+                }
+            } else {
+                // Không đủ dữ liệu nhiệt độ → bỏ qua mist cho ngày này
+                if (dayTmaxObj == null) {
+                    System.out.println(forecastDate + ": skip mist (forecast max temp is null)");
+                }
             }
         }
 
