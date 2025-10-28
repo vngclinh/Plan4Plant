@@ -81,6 +81,9 @@ public class GardenScheduleService {
         if (request.getCompletion() != null) schedule.setCompletion(request.getCompletion());
         if (request.getNote() != null) schedule.setNote(request.getNote());
 
+        if (request.getWaterAmount() != null) schedule.setWaterAmount(request.getWaterAmount());
+        if (request.getFertilityAmount() != null) schedule.setFertilityAmount(request.getFertilityAmount());
+        if (request.getFertilityType() != null) schedule.setFertilityType(request.getFertilityType());
         return toResponse(scheduleRepository.save(schedule));
     }
 

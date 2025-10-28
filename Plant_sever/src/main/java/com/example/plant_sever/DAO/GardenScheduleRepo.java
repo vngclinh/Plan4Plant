@@ -4,6 +4,7 @@ import com.example.plant_sever.model.Completion;
 import com.example.plant_sever.model.Garden;
 import com.example.plant_sever.model.GardenSchedule;
 import com.example.plant_sever.model.User;
+import com.example.plant_sever.model.ScheduleType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,4 +44,15 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             @Param("end") LocalDateTime end
     );
 
+    @Query("""
+    SELECT gs FROM GardenSchedule gs
+    WHERE gs.garden.id = :gardenId
+      AND gs.type = :type
+      AND DATE(gs.scheduledTime) = DATE(:scheduledTime)
+    """)
+    Optional<GardenSchedule> findByGardenAndTypeAndDay(
+            @Param("gardenId") Long gardenId,
+            @Param("type") ScheduleType type,
+            @Param("scheduledTime") LocalDateTime scheduledTime
+    );
 }
