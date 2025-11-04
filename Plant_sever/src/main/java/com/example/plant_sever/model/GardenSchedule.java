@@ -32,11 +32,11 @@ public class GardenSchedule {
     @Column(length = 500)
     private String note;
 
-    // --- new field for watering ---
-    private Double waterAmount; // in ml, only used for watering
+
+    private Double waterAmount;
     private Double fertilityAmount;
     private String fertilityType;
-
+    private String fungicideType;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

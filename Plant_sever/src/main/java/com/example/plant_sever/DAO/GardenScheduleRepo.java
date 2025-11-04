@@ -55,4 +55,17 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             @Param("type") ScheduleType type,
             @Param("scheduledTime") LocalDateTime scheduledTime
     );
+
+    Optional<GardenSchedule> findTopByGardenAndTypeAndFungicideTypeOrderByScheduledTimeDesc(
+            Garden garden,
+            ScheduleType type,
+            String fungicideType
+    );
+
+    List<GardenSchedule> findByGardenAndTypeAndScheduledTimeBetween(
+            Garden garden,
+            ScheduleType type,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

@@ -46,7 +46,7 @@ public class WeatherUpdateService {
 
         LocalDate today = LocalDate.now();
 
-        // Step 3: iterate over each region and fetch current weather once
+
         for (Map.Entry<String, List<User>> entry : regionGroups.entrySet()) {
             String key = entry.getKey();
             String[] parts = key.split(",");

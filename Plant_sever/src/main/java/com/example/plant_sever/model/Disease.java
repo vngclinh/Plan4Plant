@@ -2,13 +2,11 @@ package com.example.plant_sever.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "disease")
@@ -16,6 +14,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Disease {
 
     @Id
@@ -28,6 +27,7 @@ public class Disease {
     private String symptoms;
     private String causes;
     private String careguide;
+    private int priority; // higher = more urgent treatment
 
     private String imageUrl;
 
@@ -38,4 +38,7 @@ public class Disease {
     @ManyToMany(mappedBy = "diseases")
     @JsonBackReference
     private List<Garden> gardens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TreatmentRule> treatmentRules = new ArrayList<>();
 }
