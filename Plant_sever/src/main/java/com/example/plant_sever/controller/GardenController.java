@@ -4,12 +4,8 @@ import com.example.plant_sever.DTO.GardenResponse;
 import com.example.plant_sever.DTO.GardenUpdateRequest;
 
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.plant_sever.DAO.GardenRepo;
-import com.example.plant_sever.DAO.PlantRepo;
-import com.example.plant_sever.DAO.UserRepo;
 import com.example.plant_sever.DTO.AddGardenRequest;
 import com.example.plant_sever.service.GardenService;
 

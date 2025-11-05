@@ -6,7 +6,6 @@ import com.example.plant_sever.DTO.GardenScheduleResponse;
 import com.example.plant_sever.model.Completion;
 import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.GardenScheduleService;
-import com.example.plant_sever.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
