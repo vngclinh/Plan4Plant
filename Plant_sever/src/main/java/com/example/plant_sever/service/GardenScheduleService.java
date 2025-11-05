@@ -17,8 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -175,8 +174,8 @@ public class GardenScheduleService {
         LocalDate today = LocalDate.now();
         LocalDateTime periodStart = today.minusDays(maxInterval).atStartOfDay();
 
-        double roundedLat = Math.round(lat * 100.0) / 100.0;
-        double roundedLon = Math.round(lon * 100.0) / 100.0;
+        double roundedLat = Math.round(lat * 20.0) / 20.0;
+        double roundedLon = Math.round(lon * 20.0) / 20.0;
         String regionKey = roundedLat + "," + roundedLon;
 
         // --- Find last watering ---
@@ -185,6 +184,7 @@ public class GardenScheduleService {
         );
 
         LocalDateTime lastWatered = null;
+
         if (recentSchedules != null && !recentSchedules.isEmpty()) {
             lastWatered = recentSchedules.stream()
                     .filter(s -> s.getType() == ScheduleType.WATERING && s.getCompletion() != Completion.Skipped)
@@ -192,29 +192,33 @@ public class GardenScheduleService {
                     .max(LocalDateTime::compareTo)
                     .orElse(null);
         }
+
         System.out.println("=== Last Watered: " + lastWatered + " ===");
 
         LocalDateTime nextPossibleWatering = (lastWatered != null)
                 ? lastWatered.plusDays(minInterval)
                 : today.atStartOfDay();
 
-        // Historical rain for outdoor
+        // --- Calculate historical rain for outdoor gardens ---
         double cumulativeRain = 0;
         if (isOutdoor && lastWatered != null) {
             LocalDate startDate = lastWatered.toLocalDate().plusDays(1);
             List<WeatherData> rains = weatherRepository.findByRegionKeyAndDateBetween(regionKey, startDate, today);
 
-            if (rains != null && !rains.isEmpty()) {
+            if (rains == null || rains.isEmpty()) {
+                cumulativeRain = 0;
+            } else {
                 cumulativeRain = rains.stream()
-                        .mapToDouble(w -> (w.getPrecipitationMm() != null ? w.getPrecipitationMm() : 0.0) * potAreaM2 * 1000)
+                        .mapToDouble(w -> w.getPrecipitationMm() * potAreaM2 * 1000)
                         .sum();
             }
         }
+
         System.out.println("Initial cumulative rain: " + cumulativeRain + " ml");
 
         List<GardenScheduleResponse> results = new ArrayList<>();
 
-        // Forecast next 7 days
+        // --- Forecast next 7 days ---
         List<WeatherForecastDTO> forecast = meteosourceClient.get7DayForecast(lat, lon);
         LocalDateTime forecastEnd = today.plusDays(6).atTime(23, 59);
 
@@ -364,4 +368,150 @@ public class GardenScheduleService {
                 .collect(Collectors.toList());
     }
 
+    public List<GardenScheduleResponse> generateDiseaseTreatmentSchedule(Long gardenId) {
+        Garden garden = gardenRepository.findById(gardenId)
+                .orElseThrow(() -> new RuntimeException("Garden not found"));
+
+        List<Disease> diseases = garden.getDiseases();
+        if (diseases.isEmpty()) {
+            throw new RuntimeException("No disease detected for this garden");
+        }
+
+        // Sort diseases by priority (high first)
+        diseases.sort(Comparator.comparingInt(Disease::getPriority).reversed());
+
+        List<GardenScheduleResponse> responses = new ArrayList<>();
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1).withHour(8).withMinute(0);
+
+        int maxStopWateringDays = 0;
+        Map<String, Integer> fungicideMap = new HashMap<>(); // <fungicideType, interval>
+        Map<Disease, StringBuilder> pruningNotes = new HashMap<>();
+
+        // --- Step 1: Analyze treatment rules ---
+        for (Disease disease : diseases) {
+            for (TreatmentRule rule : disease.getTreatmentRules()) {
+                switch (rule.getType()) {
+                    case STOP_WATERING -> {
+                        maxStopWateringDays = Math.max(maxStopWateringDays, rule.getIntervalDays());
+                    }
+                    case FUNGICIDE -> {
+                        fungicideMap.merge(rule.getFungicideType(), rule.getIntervalDays(), Integer::min);
+                    }
+                    case PRUNING -> {
+                        // Merge multiple pruning actions for one disease
+                        pruningNotes
+                                .computeIfAbsent(disease, d -> new StringBuilder("Pruning actions for " + d.getName() + ": "))
+                                .append(rule.getDescription() != null ? rule.getDescription() + "; " : "");
+                    }
+                    default -> {
+                        // ignore others
+                    }
+                }
+            }
+        }
+
+        // --- Step 2: Stop watering schedule ---
+        LocalDateTime stopWaterEndTime = null;
+        if (maxStopWateringDays > 0) {
+            stopWaterEndTime = startTime.plusDays(maxStopWateringDays);
+
+            // Move any watering events that fall inside stop-watering period
+            List<GardenSchedule> wateringEvents = scheduleRepository
+                    .findByGardenAndTypeAndScheduledTimeBetween(
+                            garden,
+                            ScheduleType.WATERING,
+                            startTime,
+                            stopWaterEndTime
+                    );
+
+            int offsetDays = 0;
+            for (GardenSchedule water : wateringEvents) {
+                LocalDateTime newTime = stopWaterEndTime.plusDays(offsetDays).withHour(8).withMinute(0);
+                water.setScheduledTime(newTime);
+                water.setNote((water.getNote() == null ? "" : water.getNote() + " ")
+                        + "(rescheduled after stop-watering period)");
+                scheduleRepository.save(water);
+
+                offsetDays += 3;
+            }
+
+            GardenSchedule stop = GardenSchedule.builder()
+                    .garden(garden)
+                    .type(ScheduleType.STOP_WATERING)
+                    .scheduledTime(startTime)
+                    .note("Stop watering for " + maxStopWateringDays + " days due to multiple diseases")
+                    .build();
+            scheduleRepository.save(stop);
+            responses.add(toResponse(stop));
+        }
+
+        for (Map.Entry<String, Integer> entry : fungicideMap.entrySet()) {
+            String fungicideType = entry.getKey();
+            int intervalDays = entry.getValue();
+
+            GardenSchedule lastFungicide = scheduleRepository
+                    .findTopByGardenAndTypeAndFungicideTypeOrderByScheduledTimeDesc(
+                            garden, ScheduleType.FUNGICIDE, fungicideType
+                    )
+                    .orElse(null);
+
+            LocalDateTime nextScheduleTime = startTime;
+            if (lastFungicide != null) {
+                LocalDateTime nextAllowedTime = lastFungicide.getScheduledTime().plusDays(intervalDays);
+                if (nextAllowedTime.isAfter(LocalDateTime.now())) {
+                    nextScheduleTime = nextAllowedTime.withHour(8).withMinute(0);
+                }
+            }
+
+            LocalDateTime fungicideEnd = nextScheduleTime.plusDays(intervalDays);
+
+            // Move any fertilizing events that conflict with fungicide
+            List<GardenSchedule> fertilizingEvents = scheduleRepository
+                    .findByGardenAndTypeAndScheduledTimeBetween(
+                            garden,
+                            ScheduleType.FERTILIZING,
+                            nextScheduleTime,
+                            fungicideEnd
+                    );
+
+            int offsetDays = 0;
+            for (GardenSchedule fertilize : fertilizingEvents) {
+                LocalDateTime newTime = fungicideEnd.plusDays(offsetDays).withHour(8).withMinute(0);
+                fertilize.setScheduledTime(newTime);
+                fertilize.setNote((fertilize.getNote() == null ? "" : fertilize.getNote() + " ")
+                        + "(rescheduled due to fungicide treatment)");
+                scheduleRepository.save(fertilize);
+
+                offsetDays += 3; // ⏰ 3 days apart between each rescheduled fertilizing
+            }
+
+            GardenSchedule fungicide = GardenSchedule.builder()
+                    .garden(garden)
+                    .type(ScheduleType.FUNGICIDE)
+                    .fungicideType(fungicideType)
+                    .scheduledTime(nextScheduleTime)
+                    .note("Apply " + fungicideType + " every " + intervalDays + " days for related diseases")
+                    .build();
+
+            scheduleRepository.save(fungicide);
+            responses.add(toResponse(fungicide));
+        }
+        // --- Step 4: Pruning schedules (merged per disease) ---
+        for (Map.Entry<Disease, StringBuilder> entry : pruningNotes.entrySet()) {
+            Disease disease = entry.getKey();
+            String note = entry.getValue().toString();
+
+            GardenSchedule pruning = GardenSchedule.builder()
+                    .garden(garden)
+                    .type(ScheduleType.PRUNING)
+                    .scheduledTime(startTime)
+                    .note(note)
+                    .build();
+
+            scheduleRepository.save(pruning);
+            responses.add(toResponse(pruning));
+        }
+
+        return responses;
+    }
 }

@@ -5,6 +5,8 @@ public enum ScheduleType {
     FERTILIZING,
     PRUNING,
     MIST,
+    FUNGICIDE,
+    STOP_WATERING,
     OTHER
 }
 
