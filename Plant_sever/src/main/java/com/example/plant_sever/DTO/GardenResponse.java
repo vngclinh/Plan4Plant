@@ -19,6 +19,7 @@ public class GardenResponse {
     private LocalDateTime dateAdded;
     private GardenStatus status;
     private GardenType type;
-    private PotType potType;// just the name
-    private List<String> diseaseNames;  // just names
+    private PotType potType;
+    private List<String> diseaseNames;  
+    private List<DiaryResponse> diaries;
 }

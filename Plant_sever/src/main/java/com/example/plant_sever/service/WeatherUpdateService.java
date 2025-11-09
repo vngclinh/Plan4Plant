@@ -25,7 +25,7 @@ public class WeatherUpdateService {
     private final WeatherRepo weatherDataRepository;
 
     /**
-     * Run every day at 8:00 AM
+     * Run every day at 0:00 AM
      */
     @Scheduled(cron = "0 0 0 * * *")
     public void updateDailyWeather() {
@@ -46,7 +46,7 @@ public class WeatherUpdateService {
 
         LocalDate today = LocalDate.now();
 
-        // Step 3: iterate over each region and fetch current weather once
+
         for (Map.Entry<String, List<User>> entry : regionGroups.entrySet()) {
             String key = entry.getKey();
             String[] parts = key.split(",");

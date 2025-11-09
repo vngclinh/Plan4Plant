@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,5 +53,18 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             @Param("gardenId") Long gardenId,
             @Param("type") ScheduleType type,
             @Param("scheduledTime") LocalDateTime scheduledTime
+    );
+
+    Optional<GardenSchedule> findTopByGardenAndTypeAndFungicideTypeOrderByScheduledTimeDesc(
+            Garden garden,
+            ScheduleType type,
+            String fungicideType
+    );
+
+    List<GardenSchedule> findByGardenAndTypeAndScheduledTimeBetween(
+            Garden garden,
+            ScheduleType type,
+            LocalDateTime start,
+            LocalDateTime end
     );
 }
