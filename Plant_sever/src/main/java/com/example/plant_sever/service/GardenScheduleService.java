@@ -398,8 +398,8 @@ public class GardenScheduleService {
                     case FUNGICIDE -> {
                         fungicideMap.merge(rule.getFungicideType(), rule.getIntervalDays(), Integer::min);
                     }
-                    case PRUNING -> {
-                        // Merge multiple pruning actions for one disease
+                    case PRUNNING -> {
+
                         pruningNotes
                                 .computeIfAbsent(disease, d -> new StringBuilder("Pruning actions for " + d.getName() + ": "))
                                 .append(rule.getDescription() != null ? rule.getDescription() + "; " : "");
@@ -516,7 +516,7 @@ public class GardenScheduleService {
 
             GardenSchedule pruning = GardenSchedule.builder()
                     .garden(garden)
-                    .type(ScheduleType.PRUNING)
+                    .type(ScheduleType.PRUNNING)
                     .scheduledTime(startTime)
                     .note(note)
                     .build();
