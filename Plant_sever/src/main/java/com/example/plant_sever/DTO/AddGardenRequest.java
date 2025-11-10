@@ -15,6 +15,7 @@ public class AddGardenRequest {
     private Long plantId;
     private GardenStatus status;
     private String nickname;
+    private String diary;
     private GardenType type;
     private PotType potType;
     private List<Long> diseaseIds;
