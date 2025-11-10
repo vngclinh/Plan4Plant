@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 @Getter
 @Setter
 @Entity
@@ -46,11 +48,13 @@ public class Garden {
 
     @ManyToMany
     @JoinTable(
-            name = "garden_disease",
-            joinColumns = @JoinColumn(name = "garden_id"),
-            inverseJoinColumns = @JoinColumn(name = "disease_id")
+        name = "garden_disease",
+        joinColumns = @JoinColumn(name = "garden_id"),
+        inverseJoinColumns = @JoinColumn(name = "disease_id")
     )
+    @JsonManagedReference("garden-disease")
     private List<Disease> diseases = new ArrayList<>();
+
     @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GardenSchedule> schedules = new ArrayList<>();
 }

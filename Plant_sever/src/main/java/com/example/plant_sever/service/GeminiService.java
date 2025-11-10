@@ -1,103 +1,176 @@
 package com.example.plant_sever.service;
 
+import com.example.plant_sever.model.ChatHistory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.io.IOException;
+import java.util.*;
 
 @Service
 public class GeminiService {
 
+    @Autowired
+    private ChatHistoryService chatHistoryService;
+
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    public String askGemini(String userMessage) {
+    private static final String MODEL = "gemini-2.5-flash";
+    private static final String BASE_URL = "https://generativelanguage.googleapis.com/v1/models/";
+
+    public String askGemini(String userMessage, Long userId) {
         if (!isPlantRelated(userMessage)) {
-                return "Xin lỗi, tôi chỉ hỗ trợ **cây trồng/làm vườn** (tưới, bón phân, sâu bệnh, giá thể, ánh sáng, đất, chậu...). "
-                + "Bạn có thể hỏi: *“Cách tưới lan?”, “Đất trộn cho xương rồng?”, “Trị rệp sáp thế nào?”*";
+            return "Xin lỗi, tôi chỉ hỗ trợ **cây trồng/làm vườn** (tưới, bón phân, sâu bệnh, giá thể, ánh sáng, đất, chậu...). "
+                 + "Bạn có thể hỏi: *“Cách tưới lan?”, “Đất trộn cho xương rồng?”, “Trị rệp sáp thế nào?”*";
         }
-        String modelName = "gemini-2.5-flash"; // Model mới nhất, hiệu quả
-        String url = "https://generativelanguage.googleapis.com/v1/models/" + modelName + ":generateContent?key=" + apiKey;
 
-        String systemRule =
-        "Bạn là trợ lý Plan4Plant. Chỉ trả lời các câu hỏi liên quan đến cây trồng/làm vườn: "
-        + "thông tin cây, tưới, bón phân, giá thể, đất, ánh sáng, sâu bệnh, cắt tỉa, nhân giống... "
-        + "Nếu câu hỏi không liên quan, hãy từ chối ngắn gọn và gợi ý người dùng quay về chủ đề cây trồng. "
-        + "Câu trả lời ngắn gọn, gạch đầu dòng, có cảnh báo an toàn nếu cần. Ngôn ngữ: Tiếng Việt.";
+        String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
 
-        JSONObject systemContent = new JSONObject()
-            .put("parts", new org.json.JSONArray()
-                .put(new JSONObject().put("text", systemRule))
-            );
+        // 🧠 1️⃣ Lấy 5–10 lượt chat gần nhất để gửi làm context
+        List<ChatHistory> history = chatHistoryService.getRecentChats(userId);
+        history.sort(Comparator.comparing(ChatHistory::getCreatedAt));
 
-        // 2. Tạo JSON cho User Content
-        JSONObject userContent = new JSONObject()
-            .put("role", "user")
-            .put("parts", new org.json.JSONArray()
-                .put(new JSONObject().put("text", userMessage))
-            );
+        JSONArray contents = new JSONArray();
 
-        // 3. Xây dựng Payload với System Content ĐỨNG ĐẦU mảng 'contents'
-        JSONObject payload = new JSONObject()
-            .put("contents", new org.json.JSONArray()
-                .put(systemContent) // Thêm System Content trước
-                .put(userContent)  // Thêm User Content sau
-            )
-            .put("safetySettings", new org.json.JSONArray()
-                .put(new JSONObject()
-                    .put("category", "HARM_CATEGORY_DANGEROUS_CONTENT")
-                    .put("threshold", "BLOCK_MEDIUM_AND_ABOVE")
-                )
-                .put(new JSONObject()
-                    .put("category", "HARM_CATEGORY_HATE_SPEECH")
-                    .put("threshold", "BLOCK_MEDIUM_AND_ABOVE")
-                )
-                .put(new JSONObject()
-                    .put("category", "HARM_CATEGORY_HARASSMENT")
-                    .put("threshold", "BLOCK_MEDIUM_AND_ABOVE")
-                )
-            );
+        // 2️⃣ System rule (Gemini không có “system”, dùng role=user)
+        JSONObject system = new JSONObject()
+                .put("role", "user")
+                .put("parts", new JSONArray().put(new JSONObject().put("text",
+                        "Bạn là trợ lý Plan4Plant. Trả lời bằng tiếng Việt, ngắn gọn, có gạch đầu dòng. "
+                      + "Chỉ nói về cây trồng/làm vườn. Nếu câu hỏi ngoài chủ đề, hãy từ chối lịch sự.")));
+        contents.put(system);
 
+        // 3️⃣ Thêm toàn bộ hội thoại trước đó
+        for (ChatHistory c : history) {
+            contents.put(new JSONObject()
+                    .put("role", "user")
+                    .put("parts", new JSONArray().put(new JSONObject().put("text", c.getMessage()))));
+            if (c.getResponse() != null) {
+                contents.put(new JSONObject()
+                        .put("role", "model")
+                        .put("parts", new JSONArray().put(new JSONObject().put("text", c.getResponse()))));
+            }
+        }
+
+        // 4️⃣ Cuối cùng, thêm câu hỏi mới
+        contents.put(new JSONObject()
+                .put("role", "user")
+                .put("parts", new JSONArray().put(new JSONObject().put("text", userMessage))));
+
+        JSONObject payload = new JSONObject().put("contents", contents);
+
+        // 5️⃣ Gửi API
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-
         RestTemplate restTemplate = new RestTemplate();
 
         try {
-                ResponseEntity<String> response = restTemplate.postForEntity(
-                        url, new HttpEntity<>(payload.toString(), headers), String.class);
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    url, new HttpEntity<>(payload.toString(), headers), String.class);
 
-                JSONObject result = new JSONObject(response.getBody());
-                return result.getJSONArray("candidates")
-                        .getJSONObject(0)
-                        .getJSONObject("content")
-                        .getJSONArray("parts")
-                        .getJSONObject(0)
-                        .getString("text");
+            JSONObject result = new JSONObject(response.getBody());
+            String botReply = result.getJSONArray("candidates")
+                    .getJSONObject(0)
+                    .getJSONObject("content")
+                    .getJSONArray("parts")
+                    .getJSONObject(0)
+                    .getString("text");
+
+            // 6️⃣ Lưu lượt chat vào DB
+            chatHistoryService.saveChatTurn(userId, userMessage, botReply);
+
+            return botReply;
 
         } catch (HttpClientErrorException e) {
-                return " Gemini API error: " + e.getStatusCode() + " - " + e.getResponseBodyAsString();
+            return "❌ Gemini API error: " + e.getStatusCode() + " - " + e.getResponseBodyAsString();
         } catch (Exception e) {
-                return "Internal error: " + e.getMessage();
+            return "❌ Internal error: " + e.getMessage();
         }
     }
+
+    public String askGeminiWithImage(String userMessage, MultipartFile imageFile, Long userId) {
+        if (imageFile == null || imageFile.isEmpty()) return "⚠️ Ảnh bị trống, vui lòng chọn lại.";
+
+        try {
+            byte[] imageBytes = imageFile.getBytes();
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
+
+            // 🧠 Gộp context cũ (nếu có)
+            List<ChatHistory> history = chatHistoryService.getRecentChats(userId);
+            history.sort(Comparator.comparing(ChatHistory::getCreatedAt));
+            JSONArray contents = new JSONArray();
+
+            JSONObject system = new JSONObject()
+                    .put("role", "user")
+                    .put("parts", new JSONArray().put(new JSONObject().put("text",
+                            "Bạn là trợ lý Plan4Plant. Phân tích ảnh cây trồng người dùng gửi, "
+                          + "nêu loại cây, dấu hiệu bệnh và hướng xử lý. Trả lời tiếng Việt, ngắn gọn.")));
+            contents.put(system);
+
+            for (ChatHistory c : history) {
+                contents.put(new JSONObject()
+                        .put("role", "user")
+                        .put("parts", new JSONArray().put(new JSONObject().put("text", c.getMessage()))));
+                if (c.getResponse() != null) {
+                    contents.put(new JSONObject()
+                            .put("role", "model")
+                            .put("parts", new JSONArray().put(new JSONObject().put("text", c.getResponse()))));
+                }
+            }
+
+            // 🧩 Thêm ảnh và yêu cầu hiện tại
+            JSONObject userContent = new JSONObject()
+                    .put("role", "user")
+                    .put("parts", new JSONArray()
+                            .put(new JSONObject().put("text", userMessage))
+                            .put(new JSONObject().put("inlineData", new JSONObject()
+                                    .put("mimeType", imageFile.getContentType())
+                                    .put("data", base64Image))));
+            contents.put(userContent);
+
+            JSONObject payload = new JSONObject().put("contents", contents);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            RestTemplate restTemplate = new RestTemplate();
+
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    url, new HttpEntity<>(payload.toString(), headers), String.class);
+
+            JSONObject result = new JSONObject(response.getBody());
+            String botReply = result.getJSONArray("candidates")
+                    .getJSONObject(0)
+                    .getJSONObject("content")
+                    .getJSONArray("parts")
+                    .getJSONObject(0)
+                    .getString("text");
+
+            chatHistoryService.saveChatTurn(userId, userMessage + " [ảnh]", botReply);
+            return botReply;
+
+        } catch (IOException e) {
+            return "❌ Lỗi đọc ảnh: " + e.getMessage();
+        } catch (HttpClientErrorException e) {
+            return "❌ Gemini API error: " + e.getStatusCode() + " - " + e.getResponseBodyAsString();
+        } catch (Exception e) {
+            return "❌ Internal error: " + e.getMessage();
+        }
+    }
+
     private boolean isPlantRelated(String text) {
         if (text == null) return false;
-        String q = text.toLowerCase(java.util.Locale.ROOT);
-
-        String[] kws = {
-                "cây", "trồng", "tưới", "bón", "phân", "giá thể", "đất", "chậu",
-                "sâu", "bệnh", "nấm", "lá", "rễ", "hoa", "lan", "giâm", "gieo",
-                "pH", "tưới nước", "phun", "vườn", "cay", "trong", "tuoi","bon","phan","gia the", "dat", "benh","chau",
-                "sau","benh", "nam", "la", "re", "giam",
-                "plant", "watering", "fertilizer", "soil", "pot", "orchid", "pest", "fungus", "leaf", "root"
-        };
-
-        for (String k : kws) {
-                if (q.contains(k)) return true;
-        }
+        String q = text.toLowerCase(Locale.ROOT);
+        String[] kws = {"cây", "trồng", "tưới", "bón", "phân", "giá thể", "đất", "chậu", "sâu", "bệnh", "nấm", "lá", "rễ", "hoa", "lan"};
+        for (String k : kws) if (q.contains(k)) return true;
         return false;
-        }
+    }
 }
