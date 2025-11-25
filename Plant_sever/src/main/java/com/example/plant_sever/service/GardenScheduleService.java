@@ -372,22 +372,21 @@ public class GardenScheduleService {
         Garden garden = gardenRepository.findById(gardenId)
                 .orElseThrow(() -> new RuntimeException("Garden not found"));
 
-        List<Disease> diseases = garden.getDiseases();
+        List<Disease> diseases = gardenRepository.findActiveDiseases(gardenId);
         if (diseases.isEmpty()) {
             throw new RuntimeException("No disease detected for this garden");
         }
 
-        // Sort diseases by priority (high first)
+
         diseases.sort(Comparator.comparingInt(Disease::getPriority).reversed());
 
         List<GardenScheduleResponse> responses = new ArrayList<>();
         LocalDateTime startTime = LocalDateTime.now().plusDays(1).withHour(8).withMinute(0);
 
         int maxStopWateringDays = 0;
-        Map<String, Integer> fungicideMap = new HashMap<>(); // <fungicideType, interval>
+        Map<String, Integer> fungicideMap = new HashMap<>();
         Map<Disease, StringBuilder> pruningNotes = new HashMap<>();
 
-        // --- Step 1: Analyze treatment rules ---
         for (Disease disease : diseases) {
             for (TreatmentRule rule : disease.getTreatmentRules()) {
                 switch (rule.getType()) {
@@ -404,13 +403,13 @@ public class GardenScheduleService {
                                 .append(rule.getDescription() != null ? rule.getDescription() + "; " : "");
                     }
                     default -> {
-                        // ignore others
+
                     }
                 }
             }
         }
 
-        // --- Step 2: Stop watering schedule ---
+
         LocalDateTime stopWaterEndTime = null;
         if (maxStopWateringDays > 0) {
             stopWaterEndTime = startTime.plusDays(maxStopWateringDays);
@@ -448,7 +447,7 @@ public class GardenScheduleService {
 
         }
 
-        // 🪴 Determine where to start the fungicide schedule
+
         LocalDateTime lastFungicideTime = startTime;
 
 
@@ -462,20 +461,22 @@ public class GardenScheduleService {
             lastFungicideTime = lastFungicideOverall.getScheduledTime();
         }
 
-// 🧩 Sequentially create fungicide schedules based on fungicideMap order
+
         for (Map.Entry<String, Integer> entry : fungicideMap.entrySet()) {
+
             String fungicideType = entry.getKey();
             int intervalDays = entry.getValue();
 
-            // 👉 Sequential scheduling: each fungicide happens after the previous one
+            // first time to apply
             LocalDateTime nextScheduleTime = lastFungicideTime.plusDays(intervalDays)
                     .withHour(8).withMinute(0);
 
+            // end of the interval window
             LocalDateTime fungicideEnd = nextScheduleTime.plusDays(intervalDays);
 
-            // 🚫 Move any fertilizing events that conflict with this fungicide period
-            List<GardenSchedule> fertilizingEvents = scheduleRepository
-                    .findByGardenAndTypeAndScheduledTimeBetween(
+            // Move fertilizing events out of fungicide window
+            List<GardenSchedule> fertilizingEvents =
+                    scheduleRepository.findByGardenAndTypeAndScheduledTimeBetween(
                             garden,
                             ScheduleType.FERTILIZING,
                             nextScheduleTime,
@@ -490,25 +491,33 @@ public class GardenScheduleService {
                 fertilize.setNote((fertilize.getNote() == null ? "" : fertilize.getNote() + " ")
                         + "(rescheduled due to fungicide treatment)");
                 scheduleRepository.save(fertilize);
-                offsetDays += 3; // keep 3 days apart between each rescheduled fertilizing
+                offsetDays += 3;
             }
 
-            // 💾 Create and save the fungicide schedule
-            GardenSchedule fungicide = GardenSchedule.builder()
-                    .garden(garden)
-                    .type(ScheduleType.FUNGICIDE)
-                    .fungicideType(fungicideType)
-                    .scheduledTime(nextScheduleTime)
-                    .note("Apply " + fungicideType + " every " + intervalDays + " days for related diseases")
-                    .build();
+            // ---------------------------------------------------------
+            // NEW LOGIC: CREATE DAILY FUNGICIDE EVENTS
+            // ---------------------------------------------------------
+            for (int day = 0; day < intervalDays; day++) {
 
-            scheduleRepository.save(fungicide);
-            responses.add(toResponse(fungicide));
+                LocalDateTime dailyTime = nextScheduleTime.plusDays(day)
+                        .withHour(8).withMinute(0);
 
-            // 🔁 Update for the next fungicide in sequence
+                GardenSchedule dailyFungicide = GardenSchedule.builder()
+                        .garden(garden)
+                        .type(ScheduleType.CURRENT_FUNGICIDE)
+                        .fungicideType(fungicideType)
+                        .scheduledTime(dailyTime)
+                        .note("Current Apply " + fungicideType + " (Day " + (day + 1) + "/" + intervalDays + ")")
+                        .build();
+
+                scheduleRepository.save(dailyFungicide);
+                responses.add(toResponse(dailyFungicide));
+            }
+
+            //
             lastFungicideTime = nextScheduleTime;
         }
-        // --- Step 4: Pruning schedules (merged per disease) ---
+
         for (Map.Entry<Disease, StringBuilder> entry : pruningNotes.entrySet()) {
             Disease disease = entry.getKey();
             String note = entry.getValue().toString();

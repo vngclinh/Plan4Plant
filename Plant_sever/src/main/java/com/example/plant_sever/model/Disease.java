@@ -37,9 +37,9 @@ public class Disease {
     @JsonBackReference
     private List<Plant> plants = new ArrayList<>();
 
-    @ManyToMany(mappedBy = "diseases")
+    @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonBackReference
-    private List<Garden> gardens = new ArrayList<>();
+    private List<GardenDisease> gardenDiseases = new ArrayList<>();
 
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("disease-treatment")

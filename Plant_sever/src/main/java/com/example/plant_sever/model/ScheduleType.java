@@ -7,6 +7,7 @@ public enum ScheduleType {
     MIST,
     FUNGICIDE,
     STOP_WATERING,
+    CURRENT_FUNGICIDE,
     OTHER
 }
 

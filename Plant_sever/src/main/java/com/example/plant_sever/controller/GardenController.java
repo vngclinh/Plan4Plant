@@ -51,4 +51,8 @@ public class GardenController {
         gardenService.removePlantFromGarden(gardenId);
         return ResponseEntity.noContent().build();
     }
+
+
+
+
 }
