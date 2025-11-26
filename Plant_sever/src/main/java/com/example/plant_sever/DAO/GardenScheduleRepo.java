@@ -67,4 +67,6 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             LocalDateTime start,
             LocalDateTime end
     );
+
+    long countByGarden_User_IdAndCompletion(Long userId, Completion completion);
 }

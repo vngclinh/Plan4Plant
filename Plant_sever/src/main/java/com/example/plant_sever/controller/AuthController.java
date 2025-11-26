@@ -5,6 +5,7 @@ import com.example.plant_sever.DTO.JwtResponse;
 import com.example.plant_sever.DTO.LoginRequest;
 import com.example.plant_sever.DTO.RegisterRequest;
 import com.example.plant_sever.Security.JwtUtils;
+import com.example.plant_sever.model.Level;
 import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.EmailService;
 import com.example.plant_sever.service.RefreshTokenService;
@@ -56,6 +57,8 @@ public class AuthController {
         user.setEmail(request.getEmail());
         user.setPhoneNumber(request.getPhoneNumber());
         user.setFullname(request.getFullname());
+        user.setLevel(Level.MAM);
+        user.setStreak(0);
         userRepo.save(user);
 
         return ResponseEntity.ok("User registered successfully!");

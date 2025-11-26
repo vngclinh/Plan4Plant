@@ -3,6 +3,7 @@ package com.example.plant_sever.service;
 import com.example.plant_sever.model.ChatHistory;
 import com.example.plant_sever.model.User;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import com.example.plant_sever.DAO.ChatHistoryRepo;
@@ -43,6 +44,7 @@ public class ChatHistoryService {
     }
 
     @Scheduled(cron = "0 0 3 * * *") // 3h sáng hàng ngày
+    @Transactional
     public void cleanupOldChats() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(3);
         chatHistoryRepository.deleteByCreatedAtBefore(cutoff);

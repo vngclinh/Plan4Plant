@@ -3,6 +3,7 @@ package com.example.plant_sever.controller;
 import com.example.plant_sever.DAO.UserRepo;
 import com.example.plant_sever.DTO.ChangepasswordRequest;
 import com.example.plant_sever.DTO.UpdateUserRequest;
+import com.example.plant_sever.DTO.UserProgressResponse;
 
 import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.CloudinaryService;
@@ -86,5 +87,19 @@ public class UserController {
 
         User updatedUser = userService.updateUser(username, request);
         return ResponseEntity.ok(updatedUser);
+    }
+
+    @PostMapping("/water-tree")
+    public ResponseEntity<UserProgressResponse> waterTreeStreak() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UserProgressResponse progress = userService.recordDailyWatering(username);
+        return ResponseEntity.ok(progress);
+    }
+
+    @GetMapping("/progress")
+    public ResponseEntity<UserProgressResponse> getProgress() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UserProgressResponse progress = userService.getProgress(username);
+        return ResponseEntity.ok(progress);
     }
 }
