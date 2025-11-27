@@ -28,4 +28,5 @@ public interface GardenRepo extends JpaRepository<Garden, Long> {
     @Query("SELECT gd.disease FROM GardenDisease gd WHERE gd.garden.id = :gardenId AND gd.status = 'ACTIVE'")
     List<Disease> findActiveDiseases(@Param("gardenId") Long gardenId);
 
+    long countByUser_Id(Long userId);
 }

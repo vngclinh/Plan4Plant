@@ -7,6 +7,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
+
 import org.springframework.http.MediaType;
 
 @RestController
@@ -22,31 +25,31 @@ public class ChatController {
         this.userRepo = userRepo;
     }
 
-    // ✅ Một endpoint duy nhất hỗ trợ cả JSON (text) và multipart (ảnh + text)
-    @PostMapping(consumes = { MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE })
-    public String chat(
-            @RequestPart(value = "message", required = false) String message,
-            @RequestPart(value = "image", required = false) MultipartFile imageFile
-    ) {
-        // 🔐 Lấy thông tin người dùng từ JWT
+    // 🗨️ Trường hợp chỉ gửi TEXT (application/json)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public String chatText(@RequestBody Map<String, String> body) {
+        String message = body.get("message");
+
+        if (message == null || message.isEmpty())
+            return "⚠️ Bạn chưa gửi nội dung nào (text).";
+
+        Long userId = getCurrentUserId();
+        return geminiService.askGemini(message, userId);
+    }
+
+    // 📸 Trường hợp gửi ảnh (multipart/form-data)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public String chatImage(@RequestPart("message") String message,
+                            @RequestPart("image") MultipartFile imageFile) {
+        Long userId = getCurrentUserId();
+        return geminiService.askGeminiWithImage(message, imageFile, userId);
+    }
+
+    private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
-
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng: " + username));
-
-        Long userId = user.getId();
-
-        // 📸 Nếu có ảnh thì gọi Gemini xử lý ảnh + text
-        if (imageFile != null && !imageFile.isEmpty()) {
-            return geminiService.askGeminiWithImage(message, imageFile, userId);
-        }
-
-        // 💬 Nếu chỉ có text
-        if (message != null && !message.isEmpty()) {
-            return geminiService.askGemini(message, userId);
-        }
-
-        return "⚠️ Bạn chưa gửi nội dung nào (text hoặc ảnh).";
+        return user.getId();
     }
 }

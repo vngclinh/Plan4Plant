@@ -1,6 +1,7 @@
 package com.example.plant_sever.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.*;
@@ -33,13 +34,16 @@ public class Disease {
 
     private String imageUrl;
 
-    @ManyToMany(mappedBy = "diseases")
-    @JsonBackReference
-    private List<Plant> plants = new ArrayList<>();
+@ManyToMany(mappedBy = "diseases")
+@JsonIgnore // ❗ Thay vì @JsonBackReference
+private List<Plant> plants = new ArrayList<>();
 
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonBackReference
     private List<GardenDisease> gardenDiseases = new ArrayList<>();
+@ManyToMany(mappedBy = "diseases")
+@JsonIgnore
+private List<Garden> gardens = new ArrayList<>();
 
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("disease-treatment")

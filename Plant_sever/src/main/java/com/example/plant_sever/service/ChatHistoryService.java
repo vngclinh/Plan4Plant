@@ -1,8 +1,14 @@
 package com.example.plant_sever.service;
 
 import com.example.plant_sever.model.ChatHistory;
+import com.example.plant_sever.model.User;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
 import com.example.plant_sever.DAO.ChatHistoryRepo;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.plant_sever.DAO.UserRepo;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -10,19 +16,24 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ChatHistoryService {
 
-    @Autowired
-    private ChatHistoryRepo chatHistoryRepository;
+    private final ChatHistoryRepo chatHistoryRepository;
+    private final UserRepo userRepo;
 
     public void saveChatTurn(Long userId, String message, String response) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         ChatHistory chat = ChatHistory.builder()
-                .userId(userId)
+                .user(user)
                 .role("user")
                 .message(message)
                 .response(response)
                 .createdAt(LocalDateTime.now())
                 .build();
+
         chatHistoryRepository.save(chat);
     }
 
@@ -33,6 +44,7 @@ public class ChatHistoryService {
     }
 
     @Scheduled(cron = "0 0 3 * * *") // 3h sáng hàng ngày
+    @Transactional
     public void cleanupOldChats() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(3);
         chatHistoryRepository.deleteByCreatedAtBefore(cutoff);

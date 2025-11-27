@@ -34,3 +34,4 @@ build/
 .vscode/
 
 src/main/resources/application.properties
+Plant_sever/src/main/resources/firebase-service-account.json

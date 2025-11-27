@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @Entity
@@ -37,5 +39,15 @@ public class User {
 
     @Column(name="lon")
     private Double lon;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "level", nullable = false)
+    private Level level = Level.MAM;
+
+    @Column(name = "streak", nullable = false)
+    private int streak = 0;
+
+    @Column(name = "last_streak_date")
+    private LocalDate lastStreakDate;
 
 }
