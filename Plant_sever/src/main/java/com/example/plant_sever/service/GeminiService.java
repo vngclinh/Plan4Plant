@@ -42,6 +42,12 @@ public class GeminiService {
                     + "Bạn có thể hỏi: *“Cách tưới lan?”, “Đất trộn cho xương rồng?”, “Trị rệp sáp thế nào?”*";
         }
 
+        try {
+            chatHistoryService.validateQuota(userId);
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
+
         String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
 
         // Lấy 5–10 lượt chat gần nhất để gửi làm context
@@ -155,6 +161,8 @@ public class GeminiService {
             return "⚠️ Ảnh bị trống, vui lòng chọn lại.";
 
         try {
+            chatHistoryService.validateQuota(userId);
+
             byte[] imageBytes = imageFile.getBytes();
             String base64Image = Base64.getEncoder().encodeToString(imageBytes);
             String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;

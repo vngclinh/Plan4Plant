@@ -14,4 +14,6 @@ public interface ChatHistoryRepo extends JpaRepository<ChatHistory, Long> {
     List<ChatHistory> findRecentChats(Long userId, LocalDateTime since);
 
     void deleteByCreatedAtBefore(LocalDateTime cutoff);
+
+    long countByUser_IdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 }

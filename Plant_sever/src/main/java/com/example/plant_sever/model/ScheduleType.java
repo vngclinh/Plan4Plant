@@ -10,4 +10,3 @@ public enum ScheduleType {
     CURRENT_FUNGICIDE,
     OTHER
 }
-

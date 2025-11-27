@@ -1,7 +1,9 @@
 package com.example.plant_sever.controller;
 
 import com.example.plant_sever.DAO.UserRepo;
+import com.example.plant_sever.DTO.ChatHistoryResponse;
 import com.example.plant_sever.model.User;
+import com.example.plant_sever.service.ChatHistoryService;
 import com.example.plant_sever.service.GeminiService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,10 +21,12 @@ public class ChatController {
 
     private final GeminiService geminiService;
     private final UserRepo userRepo;
+    private final ChatHistoryService chatHistoryService;
 
-    public ChatController(GeminiService geminiService, UserRepo userRepo) {
+    public ChatController(GeminiService geminiService, UserRepo userRepo, ChatHistoryService chatHistoryService) {
         this.geminiService = geminiService;
         this.userRepo = userRepo;
+        this.chatHistoryService = chatHistoryService;
     }
 
     // 🗨️ Trường hợp chỉ gửi TEXT (application/json)
@@ -43,6 +47,12 @@ public class ChatController {
                             @RequestPart("image") MultipartFile imageFile) {
         Long userId = getCurrentUserId();
         return geminiService.askGeminiWithImage(message, imageFile, userId);
+    }
+
+    @GetMapping("/today")
+    public java.util.List<ChatHistoryResponse> getTodayChat() {
+        Long userId = getCurrentUserId();
+        return chatHistoryService.getTodayChatResponses(userId);
     }
 
     private Long getCurrentUserId() {
