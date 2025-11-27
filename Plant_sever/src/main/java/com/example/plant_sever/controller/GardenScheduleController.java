@@ -76,6 +76,17 @@ public class GardenScheduleController {
         return ResponseEntity.ok(schedules);
     }
 
+    @PostMapping("/garden/{gardenId}/generatewithdisease")
+    public ResponseEntity<List<GardenScheduleResponse>> generateCaringSchedule(
+            @PathVariable Long gardenId
+
+    ) {
+        List<GardenScheduleResponse> schedules =
+                scheduleService.generateDiseaseTreatmentSchedule(gardenId);
+        return ResponseEntity.ok(schedules);
+    }
+
+
     @GetMapping("/garden/{gardenId}/date")
     public ResponseEntity<List<GardenScheduleResponse>> getByGardenAndDate(
             @PathVariable Long gardenId,

@@ -61,6 +61,13 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             String fungicideType
     );
 
+    Optional<GardenSchedule> findTopByGardenAndTypeAndFungicideTypeAndScheduledTimeLessThanEqualOrderByScheduledTimeDesc(
+            Garden garden,
+            ScheduleType type,
+            String fungicideType,
+            LocalDateTime currentTime
+    );
+
     List<GardenSchedule> findByGardenAndTypeAndScheduledTimeBetween(
             Garden garden,
             ScheduleType type,
@@ -68,5 +75,8 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             LocalDateTime end
     );
 
+    Optional<Object> findTopByGardenAndTypeAndScheduledTimeLessThanEqualOrderByScheduledTimeDesc(Garden garden, ScheduleType type, LocalDateTime scheduledTimeIsLessThan);
+
+    boolean existsByGardenAndTypeAndScheduledTime(Garden garden, ScheduleType type, LocalDateTime scheduledTime);
     long countByGarden_User_IdAndCompletion(Long userId, Completion completion);
 }

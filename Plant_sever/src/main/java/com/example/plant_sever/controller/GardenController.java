@@ -40,6 +40,11 @@ public class GardenController {
         return ResponseEntity.ok(gardenService.getUserGarden());
     }
 
+    @GetMapping("/{gardenId}")
+    public ResponseEntity<GardenResponse> getGardenById(@PathVariable long gardenId) {
+        return ResponseEntity.ok(gardenService.getGardenById(gardenId));
+    }
+
     @PutMapping("/{gardenId}/")
     public ResponseEntity<GardenResponse> updateGarden(@PathVariable Long gardenId,
                                                        @RequestBody GardenUpdateRequest request) {
@@ -51,4 +56,8 @@ public class GardenController {
         gardenService.removePlantFromGarden(gardenId);
         return ResponseEntity.noContent().build();
     }
+
+
+
+
 }

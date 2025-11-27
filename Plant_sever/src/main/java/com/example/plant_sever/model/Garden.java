@@ -33,7 +33,7 @@ public class Garden {
 
     @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Diary> diaries = new ArrayList<>();
-    
+
     @Enumerated(EnumType.STRING)
     private GardenType type;
 
@@ -46,14 +46,10 @@ public class Garden {
     @Enumerated(EnumType.STRING)
     private PotType potType;
 
-    @ManyToMany
-    @JoinTable(
-        name = "garden_disease",
-        joinColumns = @JoinColumn(name = "garden_id"),
-        inverseJoinColumns = @JoinColumn(name = "disease_id")
-    )
-    @JsonManagedReference("garden-disease")
-    private List<Disease> diseases = new ArrayList<>();
+    @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("garden-gardenDisease")
+    private List<GardenDisease> gardenDiseases = new ArrayList<>();
+
 
     @OneToMany(mappedBy = "garden", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GardenSchedule> schedules = new ArrayList<>();
