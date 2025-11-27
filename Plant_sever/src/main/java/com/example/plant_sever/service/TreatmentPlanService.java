@@ -37,57 +37,65 @@ public class TreatmentPlanService {
                                                     String gardenNickname,
                                                     Long gardenId) {
         try {
-            // 1. Kiểm tra thông tin người dùng và tên cây (Bắt buộc phải có tên cây)
+            // 1. Kim tra thng tin ngi dng v tn cy (Bt buc phi c tn cy)
             if (userId == null) {
-                return TreatmentPlanResult.builder().success(false).message("Thiếu thông tin người dùng.").build();
+                return TreatmentPlanResult.builder().success(false).message("Thiu thng tin ngi dng.").build();
             }
             if (plantName == null || plantName.isBlank()) {
-                return TreatmentPlanResult.builder().success(false).message("Vui lòng cung cấp tên cây hoặc biệt danh cây trong vườn.").build();
+                return TreatmentPlanResult.builder().success(false).message("Vui lng cung cp tn cy hoc bit danh cy trong vn.").build();
             }
 
-            // 2. Tìm kiếm Cây trong vườn (Ưu tiên Nickname -> Common Name)
+            // 2. Tm kim Cy trong vn (u tin Nickname -> Common Name)
             Garden garden = resolveGarden(userId, plantName, gardenNickname, gardenId);
             
-            // Trường hợp KHÔNG tìm thấy cây -> Báo lỗi ngay
+            // Tu i bnh ACTIVE ca cy khi ngi dng cha cung cp tn bnh
+            if ((diseaseName == null || diseaseName.isBlank()) && garden != null) {
+                Disease activeDisease = pickActiveDisease(garden);
+                if (activeDisease != null) {
+                    diseaseName = activeDisease.getName();
+                }
+            }
+            
+            // Trng hp KHNG tm thy cy -> Bo li ngay
             if (garden == null) {
                 return TreatmentPlanResult.builder()
                         .success(false)
-                        .message("Không tìm thấy cây nào tên là '" + plantName + "' trong vườn của bạn. Bạn đã thêm cây này vào ứng dụng chưa?")
+                        .message("Khng tm thy cy no tn l '" + plantName + "' trong vn ca bn. Bn  thm cy ny vo ng dng cha?")
                         .build();
             }
 
-            // 3. Xử lý trường hợp THIẾU TÊN BỆNH (Đây là chỗ sửa lỗi "haha...")
-            // Nếu tìm thấy cây nhưng người dùng chưa nói bệnh -> Trả về Success=True để Gemini biết là có cây
-            // Kèm theo câu hỏi gợi ý để Gemini hỏi lại người dùng.
+            // 3. X l trng hp THIU TN BNH (y l ch sa li "haha...")
+            // Nu tm thy cy nhng ngi dng cha ni bnh -> Tr v Success=True  Gemini bit l c cy
+            // Km theo cu hi gi   Gemini hi li ngi dng.
             if (diseaseName == null || diseaseName.isBlank()) {
                 return TreatmentPlanResult.builder()
                         .success(true) 
-                        .message("Đã tìm thấy cây **" + friendlyGardenName(garden) + "** (ID: " + garden.getId() + ").\n"
-                                + "Cây này đang bị bệnh gì vậy ạ? Hãy mô tả triệu chứng để tôi lên lịch xử lý.")
+                        .message("Da tim thay cay **" + friendlyGardenName(garden) + "** (ID: " + garden.getId() + ").\n"
+                                + "Cay nay dang bi benh gi? Hay mo ta trieu chung de toi lap ke hoach xu ly.")
                         .gardenId(garden.getId())
                         .gardenNickname(garden.getNickname())
                         .plantName(garden.getPlant() != null ? garden.getPlant().getCommonName() : null)
                         .build();
             }
 
-            // 4. Nếu có tên bệnh -> Tìm thông tin bệnh trong DB
+            // 4. Nu c tn bnh -> Tm thng tin bnh trong DB
             Disease disease = resolveDisease(diseaseName);
             if (disease == null) {
                 return TreatmentPlanResult.builder()
                         .success(false)
-                        .message("Tìm thấy cây **" + friendlyGardenName(garden) + "** nhưng hệ thống chưa nhận diện được bệnh '" + diseaseName + "'. Vui lòng mô tả khác đi (ví dụ: đốm lá, thối rễ...).")
+                        .message("Tm thy cy **" + friendlyGardenName(garden) + "** nhng h thng cha nhn din c bnh '" + diseaseName + "'. Vui lng m t khc i (v d: m l, thi r...).")
                         .gardenId(garden.getId())
                         .build();
             }
 
-            // 5. Có đủ Cây và Bệnh -> Tính toán lịch trình (Logic cũ)
+            // 5. C  Cy v Bnh -> Tnh ton lch trnh (Logic c)
             List<TreatmentPlanAction> current = mapCurrentSchedule(garden);
             List<TreatmentPlanAction> proposed = buildProposedActions(garden, disease, false);
 
             String message = proposed.isEmpty()
-                    ? String.format("Không tìm thấy hướng xử lý cụ thể cho bệnh %s của %s. Hãy kiểm tra lại bảng quy tắc điều trị.",
+                    ? String.format("Khong tim thay huong xu ly cu the cho benh %s cua %s. Hay kiem tra lai bang quy tac dieu tri.",
                     disease.getName(), friendlyGardenName(garden))
-                    : String.format("Đã tổng hợp kế hoạch chăm sóc %s khi mắc bệnh %s. Hãy xác nhận trước khi áp dụng.",
+                    : String.format("Da tong hop ke hoach cham soc %s khi mac benh %s. Hay xac nhan truoc khi ap dung.",
                     friendlyGardenName(garden), disease.getName());
 
             return TreatmentPlanResult.builder()
@@ -104,129 +112,128 @@ public class TreatmentPlanService {
         } catch (Exception ex) {
             return TreatmentPlanResult.builder()
                     .success(false)
-                    .message("Lỗi hệ thống khi tạo kế hoạch: " + ex.getMessage())
+                    .message("Li h thng khi to k hoch: " + ex.getMessage())
                     .build();
         }
     }
 
-public TreatmentPlanResult applyTreatmentPlan(Long userId,
-                                              String plantName,
-                                              String diseaseName,
-                                              String gardenNickname,
-                                              Long gardenId) {
-    try {
-        // 1. Validate input & tìm Garden + Disease
-        ValidationResult validation = validateInputs(userId, plantName, diseaseName, gardenNickname, gardenId);
-        if (!validation.success()) {
+    public TreatmentPlanResult applyTreatmentPlan(Long userId,
+                                                  String plantName,
+                                                  String diseaseName,
+                                                  String gardenNickname,
+                                                  Long gardenId) {
+        try {
+            // 1. Validate input & tm Garden + Disease
+            ValidationResult validation = validateInputs(userId, plantName, diseaseName, gardenNickname, gardenId);
+            if (!validation.success()) {
+                return TreatmentPlanResult.builder()
+                        .success(false)
+                        .message(validation.message())
+                        .build();
+            }
+
+            Garden garden = validation.garden();
+            Disease disease = validation.disease();
+
+            // 2. Kim tra bnh  gn cho cy cha
+            if (garden.getGardenDiseases() == null) {
+                garden.setGardenDiseases(new ArrayList<>());
+            }
+
+            boolean alreadyHasDisease = garden.getGardenDiseases().stream()
+                    .anyMatch(gd -> Objects.equals(gd.getDisease().getId(), disease.getId())
+                            && gd.getStatus() == DiseaseStatus.ACTIVE);
+
+            if (!alreadyHasDisease) {
+
+                GardenDisease newGD = GardenDisease.builder()
+                        .garden(garden)
+                        .disease(disease)
+                        .detectedDate(LocalDateTime.now())
+                        .status(DiseaseStatus.ACTIVE)
+                        .build();
+
+                garden.getGardenDiseases().add(newGD);
+
+                gardenRepository.save(garden);
+            }
+
+            // 3. p dng k hoch (applyChanges = true -> ghi vo DB)
+            List<TreatmentPlanAction> actions = buildProposedActions(garden, disease, true);
+
+            // 4. To message chi tit da trn actions
+            String detailSummary = buildSummaryFromActions(
+                    garden,
+                    disease,
+                    actions,
+                    alreadyHasDisease
+            );
+
+            return TreatmentPlanResult.builder()
+                    .success(true)
+                    .message(detailSummary)
+                    .gardenId(garden.getId())
+                    .gardenNickname(garden.getNickname())
+                    .plantName(garden.getPlant() != null ? garden.getPlant().getCommonName() : null)
+                    .diseaseName(disease.getName())
+                    .proposedActions(actions)
+                    .build();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
             return TreatmentPlanResult.builder()
                     .success(false)
-                    .message(validation.message())
+                    .message("Li h thng: " + ex.getMessage())
                     .build();
         }
+    }
+    private String buildSummaryFromActions(Garden garden,
+                                           Disease disease,
+                                           List<TreatmentPlanAction> actions,
+                                           boolean alreadyHasDisease) {
+        StringBuilder sb = new StringBuilder();
 
-        Garden garden = validation.garden();
-        Disease disease = validation.disease();
-
-        // 2. Kiểm tra bệnh đã gán cho cây chưa
-        if (garden.getGardenDiseases() == null) {
-            garden.setGardenDiseases(new ArrayList<>());
+        // cu mo u
+        if (alreadyHasDisease) {
+            sb.append("Bnh **").append(disease.getName())
+              .append("**  c ghi nhn trc  cho cy **")
+              .append(friendlyGardenName(garden))
+              .append("**. Ti va cp nht li k hoch chm sc nh sau:\n\n");
+        } else {
+            sb.append(" cp nht cy **").append(friendlyGardenName(garden))
+              .append("** l ang b bnh **").append(disease.getName())
+              .append("** v iu chnh lch chm sc nh sau:\n\n");
         }
 
-
-        boolean alreadyHasDisease = garden.getGardenDiseases().stream()
-                .anyMatch(gd -> Objects.equals(gd.getDisease().getId(), disease.getId())
-                        && gd.getStatus() == DiseaseStatus.ACTIVE);
-
-        if (!alreadyHasDisease) {
-
-            GardenDisease newGD = GardenDisease.builder()
-                    .garden(garden)
-                    .disease(disease)
-                    .detectedDate(LocalDateTime.now())
-                    .status(DiseaseStatus.ACTIVE)
-                    .build();
-
-            garden.getGardenDiseases().add(newGD);
-
-            gardenRepository.save(garden);
+        if (actions == null || actions.isEmpty()) {
+            sb.append("- Khng c lch no cn iu chnh hoc to mi da trn quy tc iu tr hin ti.");
+            return sb.toString();
         }
 
-        // 3. Áp dụng kế hoạch (applyChanges = true -> ghi vào DB)
-        List<TreatmentPlanAction> actions = buildProposedActions(garden, disease, true);
-
-        // 4. Tạo message chi tiết dựa trên actions
-        String detailSummary = buildSummaryFromActions(
-                garden,
-                disease,
-                actions,
-                alreadyHasDisease
-        );
-
-        return TreatmentPlanResult.builder()
-                .success(true)
-                .message(detailSummary)
-                .gardenId(garden.getId())
-                .gardenNickname(garden.getNickname())
-                .plantName(garden.getPlant() != null ? garden.getPlant().getCommonName() : null)
-                .diseaseName(disease.getName())
-                .proposedActions(actions)  // để Gemini có thêm data nếu cần
-                .build();
-
-    } catch (Exception ex) {
-        ex.printStackTrace();
-        return TreatmentPlanResult.builder()
-                .success(false)
-                .message("Lỗi hệ thống: " + ex.getMessage())
-                .build();
-    }
-}
-private String buildSummaryFromActions(Garden garden,
-                                       Disease disease,
-                                       List<TreatmentPlanAction> actions,
-                                       boolean alreadyHasDisease) {
-    StringBuilder sb = new StringBuilder();
-
-    // câu mở đầu
-    if (alreadyHasDisease) {
-        sb.append("Bệnh **").append(disease.getName())
-          .append("** đã được ghi nhận trước đó cho cây **")
-          .append(friendlyGardenName(garden))
-          .append("**. Tôi vừa cập nhật lại kế hoạch chăm sóc như sau:\n\n");
-    } else {
-        sb.append("Đã cập nhật cây **").append(friendlyGardenName(garden))
-          .append("** là đang bị bệnh **").append(disease.getName())
-          .append("** và điều chỉnh lịch chăm sóc như sau:\n\n");
-    }
-
-    if (actions == null || actions.isEmpty()) {
-        sb.append("- Không có lịch nào cần điều chỉnh hoặc tạo mới dựa trên quy tắc điều trị hiện tại.");
-        return sb.toString();
-    }
-
-    for (TreatmentPlanAction action : actions) {
-        sb.append("• ").append(action.getDescription());
-        if (action.getScheduledTime() != null) {
-            sb.append(" (thời gian: ").append(action.getScheduledTime()).append(")");
-        }
-        sb.append("\n");
-
-        if (action.getImpactedEvents() != null && !action.getImpactedEvents().isEmpty()) {
-            sb.append("   ↳ Các lịch bị ảnh hưởng:\n");
-            for (String impact : action.getImpactedEvents()) {
-                sb.append("      - ").append(impact).append("\n");
+        for (TreatmentPlanAction action : actions) {
+            sb.append(" ").append(action.getDescription());
+            if (action.getScheduledTime() != null) {
+                sb.append(" (thi gian: ").append(action.getScheduledTime()).append(")");
             }
+            sb.append("\n");
+
+            if (action.getImpactedEvents() != null && !action.getImpactedEvents().isEmpty()) {
+                sb.append("    Cc lch b nh hng:\n");
+                for (String impact : action.getImpactedEvents()) {
+                    sb.append("      - ").append(impact).append("\n");
+                }
+            }
+            sb.append("\n");
         }
-        sb.append("\n");
+
+        return sb.toString().trim();
     }
 
-    return sb.toString().trim();
-}
 
-
-// Log tạo lịch mới
+// Log to lch mi
 private String formatCreate(ScheduleType type, LocalDateTime time, String extraNote) {
     if (extraNote == null) extraNote = "";
-    return String.format("[TẠO] %s tại %s%s",
+    return String.format("[TO] %s ti %s%s",
             type.name(),
             formatTime(time),
             extraNote.isBlank() ? "" : (" - " + extraNote));
@@ -234,25 +241,35 @@ private String formatCreate(ScheduleType type, LocalDateTime time, String extraN
 
 
     private ValidationResult validateInputs(Long userId, String plantName, String diseaseName, String gardenNickname, Long gardenId) {
-        if (userId == null) return ValidationResult.error("Thiếu thông tin người dùng.");
-        if (plantName == null || plantName.isBlank()) return ValidationResult.error("Thiếu tên cây cần kiểm tra.");
-        if (diseaseName == null || diseaseName.isBlank()) return ValidationResult.error("Thiếu tên bệnh cần xử lý.");
+        if (userId == null) return ValidationResult.error("Thiu thng tin ngi dng.");
+        if (plantName == null || plantName.isBlank()) return ValidationResult.error("Thiu tn cy cn kim tra.");
 
         Garden garden = resolveGarden(userId, plantName, gardenNickname, gardenId);
         if (garden == null) {
-            return ValidationResult.error(String.format("Không tìm thấy cây '%s' trong vườn của bạn.", plantName));
+            return ValidationResult.error(String.format("Khng tm thy cy '%s' trong vn ca bn.", plantName));
+        }
+
+        if (diseaseName == null || diseaseName.isBlank()) {
+            Disease activeDisease = pickActiveDisease(garden);
+            if (activeDisease != null) {
+                diseaseName = activeDisease.getName();
+            }
+        }
+
+        if (diseaseName == null || diseaseName.isBlank()) {
+            return ValidationResult.error("Thiu tn bnh cn x l ho c bnh ang ACTIVE cho cy.");
         }
 
         Disease disease = resolveDisease(diseaseName);
         if (disease == null) {
-            return ValidationResult.error(String.format("Không tìm thấy thông tin bệnh '%s'.", diseaseName));
+            return ValidationResult.error(String.format("Khng tm thy thng tin bnh '%s'.", diseaseName));
         }
 
         return ValidationResult.success(garden, disease);
     }
 
 private Garden resolveGarden(Long userId, String plantName, String gardenNickname, Long gardenId) {
-        // 1. Ưu tiên cao nhất: Tìm theo ID (Chính xác tuyệt đối)
+        // 1. u tin cao nht: Tm theo ID (Chnh xc tuyt i)
         if (gardenId != null && gardenId > 0) {
             Optional<Garden> byId = gardenRepository.findById(gardenId);
             if (byId.isPresent() && Objects.equals(byId.get().getUser().getId(), userId)) {
@@ -265,7 +282,7 @@ private Garden resolveGarden(Long userId, String plantName, String gardenNicknam
             return null;
         }
 
-        // 2. Nếu Gemini trích xuất được tham số gardenNickname riêng biệt, dùng nó trước
+        // 2. Nu Gemini trch xut c tham s gardenNickname ring bit, dng n trc
         String normalizedNicknameParam = normalize(gardenNickname);
         if (!normalizedNicknameParam.isEmpty()) {
             for (Garden garden : gardens) {
@@ -275,58 +292,58 @@ private Garden resolveGarden(Long userId, String plantName, String gardenNicknam
             }
         }
 
-        // Chuẩn hóa tên người dùng nhập (ví dụ: "haha..." -> "haha")
+        // Chun ha tn ngi dng nhp (v d: "haha..." -> "haha")
         String normalizedInput = normalize(plantName); 
 
         // ------------------------------------------------------------------
-        // 3. ƯU TIÊN CAO NHẤT KHI TÌM KIẾM TEXT: Tìm khớp chính xác NICKNAME
-        // (Sửa theo yêu cầu: Tìm nickname trước vì nó unique)
+        // 3. U TIN CAO NHT KHI TM KIM TEXT: Tm khp chnh xc NICKNAME
+        // (Sa theo yu cu: Tm nickname trc v n unique)
         // ------------------------------------------------------------------
         for (Garden garden : gardens) {
-            // Ví dụ: User nhập "haha...", cây có nickname "haha..." -> KHỚP NGAY
+            // V d: User nhp "haha...", cy c nickname "haha..." -> KHP NGAY
             if (normalize(garden.getNickname()).equals(normalizedInput)) {
                 return garden; 
             }
         }
 
         // ------------------------------------------------------------------
-        // 4. ƯU TIÊN TIẾP THEO: Tìm khớp chính xác COMMON NAME / SCIENTIFIC NAME
-        // (Chỉ chạy vào đây nếu không tìm thấy nickname nào trùng khớp)
+        // 4. U TIN TIP THEO: Tm khp chnh xc COMMON NAME / SCIENTIFIC NAME
+        // (Ch chy vo y nu khng tm thy nickname no trng khp)
         // ------------------------------------------------------------------
         Garden commonNameMatch = null;
         for (Garden garden : gardens) {
             Plant plant = garden.getPlant();
             if (plant == null) continue;
 
-            // Ví dụ: User nhập "Hoa sứ", nickname không có ai tên "Hoa sứ"
-            // -> Tìm thấy cây có commonName là "Hoa sứ" -> Match
+            // V d: User nhp "Hoa s", nickname khng c ai tn "Hoa s"
+            // -> Tm thy cy c commonName l "Hoa s" -> Match
             if (normalize(plant.getCommonName()).equals(normalizedInput)
                     || normalize(plant.getScientificName()).equals(normalizedInput)) {
                 
-                // Lưu lại kết quả tìm thấy đầu tiên
+                // Lu li kt qu tm thy u tin
                 if (commonNameMatch == null) {
                     commonNameMatch = garden;
                 }
-                // LƯU Ý: Tại đây nếu muốn xử lý trường hợp có 2 cây Hoa sứ,
-                // bạn có thể throw error hoặc return list để chatbot hỏi lại.
-                // Hiện tại ta return cây đầu tiên tìm thấy.
+                // LU : Ti y nu mun x l trng hp c 2 cy Hoa s,
+                // bn c th throw error hoc return list  chatbot hi li.
+                // Hin ti ta return cy u tin tm thy.
                 return garden; 
             }
         }
 
         // ------------------------------------------------------------------
-        // 5. ƯU TIÊN CUỐI CÙNG: Tìm gần đúng (Chứa từ khóa)
-        // (Tìm trong Nickname trước, rồi mới tìm trong Common Name)
+        // 5. U TIN CUI CNG: Tm gn ng (Cha t kha)
+        // (Tm trong Nickname trc, ri mi tm trong Common Name)
         // ------------------------------------------------------------------
         
-        // Tìm chứa trong Nickname (Ví dụ: Nhập "haha", nickname "haha hihi")
+        // Tm cha trong Nickname (V d: Nhp "haha", nickname "haha hihi")
         for (Garden garden : gardens) {
             if (normalize(garden.getNickname()).contains(normalizedInput)) {
                 return garden;
             }
         }
 
-        // Tìm chứa trong Common Name (Ví dụ: Nhập "sứ", commonName "Hoa sứ")
+        // Tm cha trong Common Name (V d: Nhp "s", commonName "Hoa s")
         for (Garden garden : gardens) {
             Plant plant = garden.getPlant();
             if (plant != null && normalize(plant.getCommonName()).contains(normalizedInput)) {
@@ -347,6 +364,22 @@ private Garden resolveGarden(Long userId, String plantName, String gardenNicknam
             }
         }
         return matches.get(0);
+    }
+
+    private Disease pickActiveDisease(Garden garden) {
+        if (garden == null || garden.getGardenDiseases() == null) return null;
+
+        return garden.getGardenDiseases().stream()
+                .filter(gd -> gd.getStatus() == DiseaseStatus.ACTIVE && gd.getDisease() != null)
+                .sorted(
+                        Comparator.comparing(
+                                        (GardenDisease gd) -> Optional.ofNullable(gd.getDetectedDate()).orElse(LocalDateTime.MIN))
+                                .reversed()
+                                .thenComparing(gd -> gd.getDisease().getPriority(), Comparator.reverseOrder())
+                )
+                .map(GardenDisease::getDisease)
+                .findFirst()
+                .orElse(null);
     }
 
     private List<TreatmentPlanAction> mapCurrentSchedule(Garden garden) {
@@ -370,18 +403,18 @@ private Garden resolveGarden(Long userId, String plantName, String gardenNicknam
 
     private String buildScheduleDescription(GardenSchedule schedule) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Ghi chú: ").append(schedule.getNote() != null ? schedule.getNote() : "(không có)");
+        builder.append("Ghi ch: ").append(schedule.getNote() != null ? schedule.getNote() : "(khng c)");
 
         if (schedule.getType() == ScheduleType.WATERING && schedule.getWaterAmount() != null) {
-            builder.append(" | Lượng nước: ").append(schedule.getWaterAmount()).append(" lít");
+            builder.append(" | Lng nc: ").append(schedule.getWaterAmount()).append(" lt");
         }
         if (schedule.getType() == ScheduleType.FERTILIZING && schedule.getFertilityType() != null) {
-            builder.append(" | Phân bón: ").append(schedule.getFertilityType());
+            builder.append(" | Phn bn: ").append(schedule.getFertilityType());
         }
         if (schedule.getType() == ScheduleType.FUNGICIDE && schedule.getFungicideType() != null) {
-            builder.append(" | Thuốc: ").append(schedule.getFungicideType());
+            builder.append(" | Thuc: ").append(schedule.getFungicideType());
         }
-        builder.append(" | Trạng thái: ").append(schedule.getCompletion());
+        builder.append(" | Trng thi: ").append(schedule.getCompletion());
         return builder.toString();
     }
 
@@ -394,7 +427,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
     List<String> pruningNotes = new ArrayList<>();
     List<TreatmentRule> otherRules = new ArrayList<>();
 
-    // 1. Phân loại các rule điều trị
+    // 1. Phn loi cc rule iu tr
     if (disease.getTreatmentRules() != null) {
         for (TreatmentRule rule : disease.getTreatmentRules()) {
             if (rule.getType() == null) continue;
@@ -419,11 +452,11 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
         }
     }
 
-    // 2. NGƯNG TƯỚI NHIỀU NGÀY
+    // 2. NGNG TI NHIU NGY
     if (maxStopWateringDays > 0) {
         LocalDateTime stopWaterEndTime = startTime.plusDays(maxStopWateringDays);
 
-        // Tìm các lịch tưới nằm trong khoảng thời gian bị cấm
+        // Tm cc lch ti nm trong khong thi gian b cm
         List<GardenSchedule> wateringEvents = scheduleRepository
                 .findByGardenAndTypeAndScheduledTimeBetween(
                         garden, ScheduleType.WATERING, startTime, stopWaterEndTime);
@@ -444,13 +477,13 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 water.setScheduledTime(newTime);
                 water.setNote(appendNote(
                         water.getNote(),
-                        "Dời " + delayDays + " ngày do trị bệnh " + disease.getName()
+                        "Di " + delayDays + " ngy do tr bnh " + disease.getName()
                 ));
                 scheduleRepository.save(water);
             }
         }
 
-        // ✅ Tạo N ngày STOP_WATERING trong DB + action chi tiết
+        //  To N ngy STOP_WATERING trong DB + action chi tit
         if (applyChanges) {
             for (int i = 0; i < maxStopWateringDays; i++) {
                 LocalDateTime dayTime = startTime.plusDays(i).withHour(8).withMinute(0);
@@ -461,19 +494,19 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                         .scheduledTime(dayTime)
                         .completion(Completion.NotDone)
                         .note(String.format(
-                                "Ngày %d/%d ngưng tưới do bệnh %s",
+                                "Ngy %d/%d ngng ti do bnh %s",
                                 i + 1, maxStopWateringDays, disease.getName()))
                         .build();
                 scheduleRepository.save(stop);
             }
         }
 
-        // 1 action tóm tắt cả giai đoạn + list lịch bị dời
+        // 1 action tm tt c giai on + list lch b di
         actions.add(TreatmentPlanAction.builder()
                 .type(ScheduleType.STOP_WATERING.name())
                 .scheduledTime(formatTime(startTime))
                 .description(String.format(
-                        "Ngưng tưới %s trong %d ngày, từ %s đến %s.",
+                        "Ngng ti %s trong %d ngy, t %s n %s.",
                         friendlyGardenName(garden),
                         maxStopWateringDays,
                         formatTime(startTime),
@@ -483,7 +516,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 .build());
     }
 
-    // 3. PHUN THUỐC NHIỀU LẦN (chu kỳ intervalDays, trong PREVIEW_DAYS)
+    // 3. PHUN THUC NHIU LN (chu k intervalDays, trong PREVIEW_DAYS)
     for (Map.Entry<String, Integer> entry : fungicideMap.entrySet()) {
         String fungicideType = entry.getKey();
         int intervalDays = entry.getValue();
@@ -502,7 +535,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
             }
         }
 
-        // Khoảng “cấm bón phân” cho lần phun đầu
+        // Khong cm bn phn cho ln phun u
         LocalDateTime firstFungicideEnd = nextScheduleTime.plusDays(intervalDays);
 
         List<GardenSchedule> fertilizingEvents = scheduleRepository
@@ -526,12 +559,12 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 fertilize.setScheduledTime(newTime);
                 fertilize.setNote(appendNote(
                         fertilize.getNote(),
-                        "Dời do phun thuốc " + fungicideType));
+                        "Di do phun thuc " + fungicideType));
                 scheduleRepository.save(fertilize);
             }
         }
 
-        // ✅ Tạo nhiều lịch phun trong PREVIEW_DAYS
+        //  To nhiu lch phun trong PREVIEW_DAYS
         List<String> createdTimes = new ArrayList<>();
         LocalDateTime horizon = LocalDateTime.now().plusDays(PREVIEW_DAYS);
 
@@ -544,8 +577,8 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                         .fungicideType(fungicideType)
                         .scheduledTime(current)
                         .completion(Completion.NotDone)
-                        .note("Phun " + fungicideType + " (chu kỳ " + intervalDays
-                                + " ngày) trị " + disease.getName())
+                        .note("Phun " + fungicideType + " (chu k " + intervalDays
+                                + " ngy) tr " + disease.getName())
                         .build();
                 scheduleRepository.save(fungicide);
 
@@ -553,7 +586,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 current = current.plusDays(intervalDays);
             }
         } else {
-            // preview mode: chỉ show text, không lưu DB
+            // preview mode: ch show text, khng lu DB
             LocalDateTime current = nextScheduleTime;
             while (!current.isAfter(LocalDateTime.now().plusDays(PREVIEW_DAYS))) {
                 createdTimes.add(formatTime(current));
@@ -565,7 +598,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 .type(ScheduleType.FUNGICIDE.name())
                 .scheduledTime(formatTime(nextScheduleTime))
                 .description(String.format(
-                        "Phun %s theo chu kỳ %d ngày. Các lịch phun sắp tới: %s",
+                        "Phun %s theo chu k %d ngy. Cc lch phun sp ti: %s",
                         fungicideType,
                         intervalDays,
                         String.join(", ", createdTimes)
@@ -574,7 +607,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 .build());
     }
 
-    // 4. Xử lý CẮT TỈA (PRUNING)
+    // 4. X l CT TA (PRUNING)
     if (!pruningNotes.isEmpty()) {
         List<String> impacted = new ArrayList<>();
 
@@ -597,14 +630,14 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
         actions.add(TreatmentPlanAction.builder()
                 .type(ScheduleType.PRUNNING.name())
                 .scheduledTime(formatTime(startTime))
-                .description(String.format("Tỉa cành/lá: %s", String.join("; ", pruningNotes)))
+                .description(String.format("Ta cnh/l: %s", String.join("; ", pruningNotes)))
                 .impactedEvents(impacted)
                 .build());
     }
 
-        // 5. Các rule khác
+        // 5. Cc rule khc
         for (TreatmentRule rule : otherRules) {
-            String note = rule.getDescription() != null ? rule.getDescription() : "Tuân thủ hướng dẫn chăm sóc chung.";
+            String note = rule.getDescription() != null ? rule.getDescription() : "Tun th hng dn chm sc chung.";
             actions.add(TreatmentPlanAction.builder()
                     .type(rule.getType() != null ? rule.getType().name() : ScheduleType.OTHER.name())
                     .scheduledTime(formatTime(startTime))
@@ -623,7 +656,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
     }
 
     private String formatReschedule(LocalDateTime oldTime, LocalDateTime newTime) {
-        return String.format("%s → %s", formatTime(oldTime), formatTime(newTime));
+        return String.format("%s  %s", formatTime(oldTime), formatTime(newTime));
     }
 
     private String formatTime(LocalDateTime time) {
@@ -637,7 +670,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
         if (garden.getPlant() != null && garden.getPlant().getCommonName() != null) {
             return garden.getPlant().getCommonName();
         }
-        return "cây trong vườn";
+        return "cy trong vn";
     }
 
     private String normalize(String value) {
@@ -658,3 +691,4 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
         }
     }
 }
+
