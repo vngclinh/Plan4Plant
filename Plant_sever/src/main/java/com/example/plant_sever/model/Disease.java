@@ -41,9 +41,7 @@ private List<Plant> plants = new ArrayList<>();
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonBackReference
     private List<GardenDisease> gardenDiseases = new ArrayList<>();
-@ManyToMany(mappedBy = "diseases")
-@JsonIgnore
-private List<Garden> gardens = new ArrayList<>();
+
 
     @OneToMany(mappedBy = "disease", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference("disease-treatment")
