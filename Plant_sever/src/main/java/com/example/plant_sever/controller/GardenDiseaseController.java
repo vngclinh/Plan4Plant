@@ -38,4 +38,35 @@ public class GardenDiseaseController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
+
+
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteGardenDisease(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(gardenService.deleteGardenDisease(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/garden/{gardenId}")
+    public ResponseEntity<?> getDiseasesOfGarden(@PathVariable Long gardenId) {
+        try {
+            return ResponseEntity.ok(gardenService.getDiseasesOfGarden(gardenId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getGardenDiseaseById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(gardenService.getGardenDiseaseById(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
 }

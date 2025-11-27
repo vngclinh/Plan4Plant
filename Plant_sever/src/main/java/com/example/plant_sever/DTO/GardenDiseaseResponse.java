@@ -10,10 +10,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class GardenDiseaseResponse {
+    private Long gardenDiseaseId;
     private Long diseaseId;
     private String name;
     private String scientificName;
     private LocalDateTime detectedDate;
+    private LocalDateTime curedDate;
     private DiseaseStatus status;
 }
 

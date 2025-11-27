@@ -136,6 +136,7 @@ public class GardenScheduleService {
                 .waterAmount(schedule.getWaterAmount())
                 .fertilityType(schedule.getFertilityType())
                 .fertilityAmount(schedule.getFertilityAmount())
+                .fungicideType(schedule.getFungicideType())
                 .createdAt(schedule.getCreatedAt())
                 .updatedAt(schedule.getUpdatedAt())
                 .build();
@@ -435,15 +436,26 @@ public class GardenScheduleService {
             }
 
             for (int i = 0; i < maxStopWateringDays; i++) {
-                GardenSchedule stop = GardenSchedule.builder()
-                        .garden(garden)
-                        .type(ScheduleType.STOP_WATERING)
-                        .scheduledTime(startTime.plusDays(i))
-                        .note("Stop watering (Day " + (i + 1) + "/" + maxStopWateringDays + ") due to multiple diseases")
-                        .build();
-                scheduleRepository.save(stop);
-                responses.add(toResponse(stop));
+                LocalDateTime dayTime = startTime.plusDays(i);
+
+                boolean exists = scheduleRepository.existsByGardenAndTypeAndScheduledTime(
+                        garden, ScheduleType.STOP_WATERING, dayTime
+                );
+
+                if (!exists) {
+                    GardenSchedule stop = GardenSchedule.builder()
+                            .garden(garden)
+                            .type(ScheduleType.STOP_WATERING)
+                            .scheduledTime(dayTime)
+                            .note("Stop watering (Day " + (i + 1) + "/" + maxStopWateringDays + ") due to multiple diseases")
+                            .completion(Completion.NotDone)
+                            .build();
+
+                    scheduleRepository.save(stop);
+                    responses.add(toResponse(stop));
+                }
             }
+
 
         }
 
@@ -494,6 +506,18 @@ public class GardenScheduleService {
                 offsetDays += 3;
             }
 
+            GardenSchedule realFungicide = GardenSchedule.builder()
+                    .garden(garden)
+                    .type(ScheduleType.FUNGICIDE)
+                    .fungicideType(fungicideType)
+                    .scheduledTime(nextScheduleTime.withHour(8).withMinute(0))
+                    .note("Apply fungicide: " + fungicideType)
+                    .completion(Completion.NotDone)
+                    .build();
+
+            scheduleRepository.save(realFungicide);
+            responses.add(toResponse(realFungicide));
+
             // ---------------------------------------------------------
             // NEW LOGIC: CREATE DAILY FUNGICIDE EVENTS
             // ---------------------------------------------------------
@@ -502,17 +526,20 @@ public class GardenScheduleService {
                 LocalDateTime dailyTime = nextScheduleTime.plusDays(day)
                         .withHour(8).withMinute(0);
 
-                GardenSchedule dailyFungicide = GardenSchedule.builder()
+                GardenSchedule dailyFungicideBlock = GardenSchedule.builder()
                         .garden(garden)
                         .type(ScheduleType.CURRENT_FUNGICIDE)
                         .fungicideType(fungicideType)
                         .scheduledTime(dailyTime)
-                        .note("Current Apply " + fungicideType + " (Day " + (day + 1) + "/" + intervalDays + ")")
+                        .note("Block period for " + fungicideType +
+                                " (Day " + (day + 1) + "/" + intervalDays + ")")
+                        .completion(Completion.NotDone)
                         .build();
 
-                scheduleRepository.save(dailyFungicide);
-                responses.add(toResponse(dailyFungicide));
+                scheduleRepository.save(dailyFungicideBlock);
+                responses.add(toResponse(dailyFungicideBlock));
             }
+
 
             //
             lastFungicideTime = nextScheduleTime;
@@ -526,6 +553,7 @@ public class GardenScheduleService {
                     .garden(garden)
                     .type(ScheduleType.PRUNNING)
                     .scheduledTime(startTime)
+                    .completion(Completion.NotDone)
                     .note(note)
                     .build();
 

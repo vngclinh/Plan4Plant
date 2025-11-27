@@ -76,4 +76,6 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
     );
 
     Optional<Object> findTopByGardenAndTypeAndScheduledTimeLessThanEqualOrderByScheduledTimeDesc(Garden garden, ScheduleType type, LocalDateTime scheduledTimeIsLessThan);
+
+    boolean existsByGardenAndTypeAndScheduledTime(Garden garden, ScheduleType type, LocalDateTime scheduledTime);
 }

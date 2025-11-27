@@ -117,7 +117,7 @@ public class GardenService {
     }
 
     @Transactional
-    public GardenResponse addDiseasesToGarden(Long gardenId, List<Long> diseaseIds) {
+    public List<GardenDiseaseResponse> addDiseasesToGarden(Long gardenId, List<Long> diseaseIds) {
 
         User user = getCurrentUser();
 
@@ -126,10 +126,16 @@ public class GardenService {
 
         validateOwner(garden, user);
 
+        // Add or update diseases
         addDiseases(garden, diseaseIds);
+
+        // Save garden (optional but safe)
         gardenRepo.save(garden);
 
-        return toResponse(garden);
+        // 🔥 Return list of mapped GardenDiseaseResponse
+        return garden.getGardenDiseases().stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     @Transactional
@@ -170,6 +176,46 @@ public class GardenService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public GardenResponse getGardenById(Long gardenId) {
+        GardenResponse response = gardenRepo.findById(gardenId)
+                .map(this::toResponse)
+                .orElseThrow(() -> new RuntimeException("Garden not found"));
+        return response;
+    }
+
+    public List<GardenDiseaseResponse> getDiseasesOfGarden(Long gardenId) {
+        if (!gardenRepo.existsById(gardenId)) {
+            throw new RuntimeException("Garden not found");
+        }
+
+        return gardenDiseaseRepository.findByGardenId(gardenId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    public GardenDiseaseResponse getGardenDiseaseById(Long id) {
+        GardenDisease gd = gardenDiseaseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Garden disease not found"));
+
+        return mapToResponse(gd);
+    }
+
+    public List<GardenDiseaseResponse> deleteGardenDisease(Long id) {
+        GardenDisease gd = gardenDiseaseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Garden disease not found"));
+
+        Long gardenId = gd.getGarden().getId();
+
+
+        gardenDiseaseRepository.delete(gd);
+
+        return gardenDiseaseRepository.findByGardenId(gardenId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     // ================================================================
@@ -330,10 +376,12 @@ public class GardenService {
 
     private GardenDiseaseResponse mapToResponse(GardenDisease gd) {
         return GardenDiseaseResponse.builder()
+                .gardenDiseaseId(gd.getId())
                 .diseaseId(gd.getDisease().getId())
                 .name(gd.getDisease().getName())
                 .scientificName(gd.getDisease().getScientificName())
                 .detectedDate(gd.getDetectedDate())
+                .curedDate(gd.getCuredDate())
                 .status(gd.getStatus())
                 .build();
     }

@@ -23,6 +23,7 @@ public class GardenScheduleResponse {
     private Double waterAmount; // for watering
     private Double fertilityAmount;
     private String fertilityType;
+    private String fungicideType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
