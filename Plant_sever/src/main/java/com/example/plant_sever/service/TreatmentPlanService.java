@@ -128,15 +128,26 @@ public TreatmentPlanResult applyTreatmentPlan(Long userId,
         Disease disease = validation.disease();
 
         // 2. Kiểm tra bệnh đã gán cho cây chưa
-        if (garden.getDiseases() == null) {
-            garden.setDiseases(new ArrayList<>());
+        if (garden.getGardenDiseases() == null) {
+            garden.setGardenDiseases(new ArrayList<>());
         }
 
-        boolean alreadyHasDisease = garden.getDiseases().stream()
-                .anyMatch(d -> Objects.equals(d.getId(), disease.getId()));
+
+        boolean alreadyHasDisease = garden.getGardenDiseases().stream()
+                .anyMatch(gd -> Objects.equals(gd.getDisease().getId(), disease.getId())
+                        && gd.getStatus() == DiseaseStatus.ACTIVE);
 
         if (!alreadyHasDisease) {
-            garden.getDiseases().add(disease);
+
+            GardenDisease newGD = GardenDisease.builder()
+                    .garden(garden)
+                    .disease(disease)
+                    .detectedDate(LocalDateTime.now())
+                    .status(DiseaseStatus.ACTIVE)
+                    .build();
+
+            garden.getGardenDiseases().add(newGD);
+
             gardenRepository.save(garden);
         }
 
@@ -400,7 +411,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                         );
                     }
                 }
-                case PRUNING -> {
+                case PRUNNING -> {
                     if (rule.getDescription() != null) pruningNotes.add(rule.getDescription());
                 }
                 default -> otherRules.add(rule);
@@ -570,7 +581,7 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
         if (applyChanges) {
             GardenSchedule pruning = GardenSchedule.builder()
                     .garden(garden)
-                    .type(ScheduleType.PRUNING)
+                    .type(ScheduleType.PRUNNING)
                     .scheduledTime(startTime)
                     .completion(Completion.NotDone)
                     .note(String.join("; ", pruningNotes))
@@ -578,13 +589,13 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
             scheduleRepository.save(pruning);
 
             impacted.add(formatCreate(
-                    ScheduleType.PRUNING,
+                    ScheduleType.PRUNNING,
                     startTime,
                     String.join("; ", pruningNotes)));
         }
 
         actions.add(TreatmentPlanAction.builder()
-                .type(ScheduleType.PRUNING.name())
+                .type(ScheduleType.PRUNNING.name())
                 .scheduledTime(formatTime(startTime))
                 .description(String.format("Tỉa cành/lá: %s", String.join("; ", pruningNotes)))
                 .impactedEvents(impacted)
