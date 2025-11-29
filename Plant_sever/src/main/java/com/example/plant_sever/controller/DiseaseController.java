@@ -32,5 +32,10 @@ public class DiseaseController {
     public ResponseEntity<List<Disease>> searchDiseases(@RequestParam String keyword) {
         return ResponseEntity.ok(diseaseService.searchDiseases(keyword));
     }
+
+    @GetMapping("/search/fuzzy")
+    public ResponseEntity<List<Disease>> fuzzySearch(@RequestParam String keyword) {
+        return ResponseEntity.ok(diseaseService.fuzzySearch(keyword));
+    }
 }
 
