@@ -28,5 +28,11 @@ public class DiseaseService {
         }
         return diseaseRepository.searchByName(keyword);
     }
+    public List<Disease> fuzzySearch(String keyword) {
+    if (keyword == null || keyword.trim().isEmpty()) {
+        return diseaseRepository.findAll();
+    }
+    return diseaseRepository.fuzzySearch(keyword.trim());
+    }
 }
 
