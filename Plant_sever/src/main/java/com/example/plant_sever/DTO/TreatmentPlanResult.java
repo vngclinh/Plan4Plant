@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class TreatmentPlanResult {
     private boolean success;
+    private String status;
     private String message;
     private Long gardenId;
     private String gardenNickname;

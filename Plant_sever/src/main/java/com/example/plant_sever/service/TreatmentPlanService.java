@@ -24,6 +24,13 @@ public class TreatmentPlanService {
 
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final int PREVIEW_DAYS = 14;
+    private static final String STATUS_OK = "OK";
+    private static final String STATUS_USER_MISSING = "USER_MISSING";
+    private static final String STATUS_PLANT_NAME_MISSING = "PLANT_NAME_MISSING";
+    private static final String STATUS_PLANT_NOT_FOUND = "PLANT_NOT_FOUND";
+    private static final String STATUS_DISEASE_NAME_MISSING = "DISEASE_NAME_MISSING";
+    private static final String STATUS_DISEASE_NOT_FOUND = "DISEASE_NOT_FOUND";
+    private static final String STATUS_ERROR = "ERROR";
 
     private final GardenRepo gardenRepository;
     private final GardenScheduleRepo scheduleRepository;
@@ -39,10 +46,18 @@ public class TreatmentPlanService {
         try {
             // 1. Kim tra thng tin ngi dng v tn cy (Bt buc phi c tn cy)
             if (userId == null) {
-                return TreatmentPlanResult.builder().success(false).message("Thiu thng tin ngi dng.").build();
+                return TreatmentPlanResult.builder()
+                        .success(false)
+                        .status(STATUS_USER_MISSING)
+                        .message("Thiu thng tin ngi dng.")
+                        .build();
             }
             if (plantName == null || plantName.isBlank()) {
-                return TreatmentPlanResult.builder().success(false).message("Vui lng cung cp tn cy hoc bit danh cy trong vn.").build();
+                return TreatmentPlanResult.builder()
+                        .success(false)
+                        .status(STATUS_PLANT_NAME_MISSING)
+                        .message("Vui lng cung cp tn cy hoc bit danh cy trong vn.")
+                        .build();
             }
 
             // 2. Tm kim Cy trong vn (u tin Nickname -> Common Name)
@@ -60,6 +75,7 @@ public class TreatmentPlanService {
             if (garden == null) {
                 return TreatmentPlanResult.builder()
                         .success(false)
+                        .status(STATUS_PLANT_NOT_FOUND)
                         .message("Khng tm thy cy no tn l '" + plantName + "' trong vn ca bn. Bn  thm cy ny vo ng dng cha?")
                         .build();
             }
@@ -70,6 +86,7 @@ public class TreatmentPlanService {
             if (diseaseName == null || diseaseName.isBlank()) {
                 return TreatmentPlanResult.builder()
                         .success(true) 
+                        .status(STATUS_DISEASE_NAME_MISSING)
                         .message("Da tim thay cay **" + friendlyGardenName(garden) + "** (ID: " + garden.getId() + ").\n"
                                 + "Cay nay dang bi benh gi? Hay mo ta trieu chung de toi lap ke hoach xu ly.")
                         .gardenId(garden.getId())
@@ -83,6 +100,7 @@ public class TreatmentPlanService {
             if (disease == null) {
                 return TreatmentPlanResult.builder()
                         .success(false)
+                        .status(STATUS_DISEASE_NOT_FOUND)
                         .message("Tm thy cy **" + friendlyGardenName(garden) + "** nhng h thng cha nhn din c bnh '" + diseaseName + "'. Vui lng m t khc i (v d: m l, thi r...).")
                         .gardenId(garden.getId())
                         .build();
@@ -100,6 +118,7 @@ public class TreatmentPlanService {
 
             return TreatmentPlanResult.builder()
                     .success(true)
+                    .status(STATUS_OK)
                     .message(message)
                     .gardenId(garden.getId())
                     .gardenNickname(garden.getNickname())
@@ -112,6 +131,7 @@ public class TreatmentPlanService {
         } catch (Exception ex) {
             return TreatmentPlanResult.builder()
                     .success(false)
+                    .status(STATUS_ERROR)
                     .message("Li h thng khi to k hoch: " + ex.getMessage())
                     .build();
         }
@@ -128,6 +148,7 @@ public class TreatmentPlanService {
             if (!validation.success()) {
                 return TreatmentPlanResult.builder()
                         .success(false)
+                        .status(validation.status())
                         .message(validation.message())
                         .build();
             }
@@ -171,6 +192,7 @@ public class TreatmentPlanService {
 
             return TreatmentPlanResult.builder()
                     .success(true)
+                    .status(STATUS_OK)
                     .message(detailSummary)
                     .gardenId(garden.getId())
                     .gardenNickname(garden.getNickname())
@@ -183,6 +205,7 @@ public class TreatmentPlanService {
             ex.printStackTrace();
             return TreatmentPlanResult.builder()
                     .success(false)
+                    .status(STATUS_ERROR)
                     .message("Li h thng: " + ex.getMessage())
                     .build();
         }
@@ -230,23 +253,23 @@ public class TreatmentPlanService {
     }
 
 
-// Log to lch mi
-private String formatCreate(ScheduleType type, LocalDateTime time, String extraNote) {
-    if (extraNote == null) extraNote = "";
-    return String.format("[TO] %s ti %s%s",
-            type.name(),
-            formatTime(time),
-            extraNote.isBlank() ? "" : (" - " + extraNote));
-}
+    // Log to lch mi
+    private String formatCreate(ScheduleType type, LocalDateTime time, String extraNote) {
+        if (extraNote == null) extraNote = "";
+        return String.format("[TO] %s ti %s%s",
+                type.name(),
+                formatTime(time),
+                extraNote.isBlank() ? "" : (" - " + extraNote));
+    }
 
 
     private ValidationResult validateInputs(Long userId, String plantName, String diseaseName, String gardenNickname, Long gardenId) {
-        if (userId == null) return ValidationResult.error("Thiu thng tin ngi dng.");
-        if (plantName == null || plantName.isBlank()) return ValidationResult.error("Thiu tn cy cn kim tra.");
+        if (userId == null) return ValidationResult.error(STATUS_USER_MISSING, "Thiu thng tin ngi dng.");
+        if (plantName == null || plantName.isBlank()) return ValidationResult.error(STATUS_PLANT_NAME_MISSING, "Thiu tn cy cn kim tra.");
 
         Garden garden = resolveGarden(userId, plantName, gardenNickname, gardenId);
         if (garden == null) {
-            return ValidationResult.error(String.format("Khng tm thy cy '%s' trong vn ca bn.", plantName));
+            return ValidationResult.error(STATUS_PLANT_NOT_FOUND, String.format("Khng tm thy cy '%s' trong vn ca bn.", plantName));
         }
 
         if (diseaseName == null || diseaseName.isBlank()) {
@@ -257,18 +280,18 @@ private String formatCreate(ScheduleType type, LocalDateTime time, String extraN
         }
 
         if (diseaseName == null || diseaseName.isBlank()) {
-            return ValidationResult.error("Thiu tn bnh cn x l ho c bnh ang ACTIVE cho cy.");
+            return ValidationResult.error(STATUS_DISEASE_NAME_MISSING, "Thiu tn bnh cn x l ho c bnh ang ACTIVE cho cy.");
         }
 
         Disease disease = resolveDisease(diseaseName);
         if (disease == null) {
-            return ValidationResult.error(String.format("Khng tm thy thng tin bnh '%s'.", diseaseName));
+            return ValidationResult.error(STATUS_DISEASE_NOT_FOUND, String.format("Khng tm thy thng tin bnh '%s'.", diseaseName));
         }
 
         return ValidationResult.success(garden, disease);
     }
 
-private Garden resolveGarden(Long userId, String plantName, String gardenNickname, Long gardenId) {
+    private Garden resolveGarden(Long userId, String plantName, String gardenNickname, Long gardenId) {
         // 1. u tin cao nht: Tm theo ID (Chnh xc tuyt i)
         if (gardenId != null && gardenId > 0) {
             Optional<Garden> byId = gardenRepository.findById(gardenId);
@@ -681,14 +704,13 @@ private List<TreatmentPlanAction> buildProposedActions(Garden garden, Disease di
                 .trim();
     }
 
-    private record ValidationResult(boolean success, String message, Garden garden, Disease disease) {
+    private record ValidationResult(boolean success, String status, String message, Garden garden, Disease disease) {
         static ValidationResult success(Garden garden, Disease disease) {
-            return new ValidationResult(true, null, garden, disease);
+            return new ValidationResult(true, STATUS_OK, null, garden, disease);
         }
 
-        static ValidationResult error(String message) {
-            return new ValidationResult(false, message, null, null);
+        static ValidationResult error(String status, String message) {
+            return new ValidationResult(false, status, message, null, null);
         }
     }
 }
-

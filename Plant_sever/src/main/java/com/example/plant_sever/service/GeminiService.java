@@ -65,6 +65,7 @@ public class GeminiService {
                     + "Khi nhận được trường proposedActions[].impactedEvents, hãy tóm tắt lại cho người dùng "
                     + "các lịch đã bị dời hoặc được tạo mới.")));
         contents.put(system);
+        contents.put(buildGeneralAnswerGuardrails());
 
         // Thêm lịch sử hội thoại
         for (ChatHistory c : history) {
@@ -107,6 +108,12 @@ public class GeminiService {
             if (functionCall != null) {
                 // Xử lý logic gọi hàm (tìm cây, chẩn đoán bệnh...)
                 JSONObject functionResponse = handleFunctionCall(functionCall, userId);
+
+                if (shouldFallbackToGeneral(functionResponse)) {
+                    String generalReply = answerWithoutTools(contents, headers, restTemplate, url);
+                    chatHistoryService.saveChatTurn(userId, userMessage, generalReply);
+                    return generalReply;
+                }
 
                 // Tạo payload mới cho lượt gọi thứ 2 (Follow-up)
                 JSONArray followupContents = new JSONArray(contents.toString());
@@ -177,6 +184,7 @@ public class GeminiService {
                             "Bạn là trợ lý Plan4Plant. Phân tích ảnh cây trồng người dùng gửi, "
                                     + "nêu loại cây, dấu hiệu bệnh và hướng xử lý. Trả lời tiếng Việt, ngắn gọn.")));
             contents.put(system);
+            contents.put(buildGeneralAnswerGuardrails());
 
             // History loop (giống askGemini)
             for (ChatHistory c : history) {
@@ -215,6 +223,12 @@ public class GeminiService {
             JSONObject functionCall = extractFunctionCall(parts);
             if (functionCall != null) {
                 JSONObject functionResponse = handleFunctionCall(functionCall, userId);
+
+                if (shouldFallbackToGeneral(functionResponse)) {
+                    String generalReply = answerWithoutTools(contents, headers, restTemplate, url);
+                    chatHistoryService.saveChatTurn(userId, userMessage + " [ §œnh]", generalReply);
+                    return generalReply;
+                }
 
                 JSONArray followupContents = new JSONArray(contents.toString());
                 followupContents.put(new JSONObject()
@@ -370,6 +384,8 @@ public class GeminiService {
                 .put("success", result.isSuccess())
                 .put("message", result.getMessage());
 
+        if (result.getStatus() != null) json.put("status", result.getStatus());
+
         if (result.getGardenId() != null) json.put("gardenId", result.getGardenId());
         if (result.getGardenNickname() != null) json.put("gardenNickname", result.getGardenNickname());
         if (result.getPlantName() != null) json.put("plantName", result.getPlantName());
@@ -378,6 +394,44 @@ public class GeminiService {
         json.put("currentSchedule", toJsonArray(result.getCurrentSchedule()));
         json.put("proposedActions", toJsonArray(result.getProposedActions()));
         return json;
+    }
+
+    private JSONObject buildGeneralAnswerGuardrails() {
+        return new JSONObject()
+                .put("role", "user")
+                .put("parts", new JSONArray().put(new JSONObject().put("text",
+                        "Guardrail: Luon tra loi cac cau hoi ve cay/lam vuon du khong tim thay cay hoac benh trong DB. "
+                                + "Chi goi cac ham xu ly benh khi nguoi dung dang noi ve cay trong vuon cua ho (co nickname/ID hoac noi 'cay cua toi') "
+                                + "hoac ho muon ap dung ke hoach. Neu functionResponse.status la PLANT_NOT_FOUND, PLANT_NAME_MISSING, DISEASE_NOT_FOUND "
+                                + "hoac DISEASE_NAME_MISSING thi bo qua viec yeu cau nhap DB va dua ra goi y chung, khong chan cau tra loi.")));
+    }
+
+    private boolean shouldFallbackToGeneral(JSONObject functionResponse) {
+        if (functionResponse == null) return false;
+        if (functionResponse.optBoolean("success", true)) return false;
+
+        String status = functionResponse.optString("status", "");
+        if (status == null) status = "";
+        status = status.toUpperCase(Locale.ROOT);
+
+        return status.equals("PLANT_NOT_FOUND")
+                || status.equals("PLANT_NAME_MISSING")
+                || status.equals("DISEASE_NOT_FOUND")
+                || status.equals("DISEASE_NAME_MISSING");
+    }
+
+    private String answerWithoutTools(JSONArray contents, HttpHeaders headers, RestTemplate restTemplate, String url) {
+        JSONObject payload = new JSONObject().put("contents", contents);
+        ResponseEntity<String> fallbackResponse = restTemplate.postForEntity(
+                url, new HttpEntity<>(payload.toString(), headers), String.class);
+
+        JSONObject fallbackResult = new JSONObject(fallbackResponse.getBody());
+        JSONArray fallbackParts = fallbackResult.getJSONArray("candidates")
+                .getJSONObject(0)
+                .getJSONObject("content")
+                .getJSONArray("parts");
+
+        return extractTextFromParts(fallbackParts);
     }
 
     private JSONArray toJsonArray(List<TreatmentPlanAction> actions) {
