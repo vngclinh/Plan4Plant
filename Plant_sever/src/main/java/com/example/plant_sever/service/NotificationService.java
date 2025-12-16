@@ -1,11 +1,17 @@
 package com.example.plant_sever.service;
 
 import com.example.plant_sever.DAO.DeviceTokenRepo;
+import com.example.plant_sever.DAO.NotificationRepo;
 import com.example.plant_sever.model.DeviceToken;
+import com.example.plant_sever.model.Notification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import java.io.IOException;
 import java.net.URI;
@@ -13,6 +19,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,14 +31,16 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final DeviceTokenRepo deviceTokenRepo;
+    private final NotificationRepo notificationRepo;
     private final HttpClient httpClient;
 
     // Legacy FCM server key — you should prefer using OAuth / Firebase Admin for production.
     @Value("${fcm.server.key:}")
     private String fcmServerKey;
 
-    public NotificationService(DeviceTokenRepo deviceTokenRepo) {
+    public NotificationService(DeviceTokenRepo deviceTokenRepo, NotificationRepo notificationRepo) {
         this.deviceTokenRepo = deviceTokenRepo;
+        this.notificationRepo = notificationRepo;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -59,7 +68,7 @@ public class NotificationService {
         sendPayload(payload, List.of(token));
     }
 
-    public void sendToTokens(List<String> tokens, String title, String body, Map<String, String> data) {
+    public void sendToTokens(List<String> tokens, String title, String body, Map<String, String> data, Long userId) {
         if (fcmServerKey == null || fcmServerKey.isBlank()) {
             log.warn("FCM server key is not configured; skipping push send");
             return;
@@ -67,6 +76,8 @@ public class NotificationService {
         if (tokens == null || tokens.isEmpty()) return;
         String payload = buildMulticastPayload(tokens, title, body, data);
         sendPayload(payload, tokens);
+        //lưu thông báo vào db 
+        saveNotification(userId, title, body);
     }
 
     // Build JSON payload for a single token (legacy FCM endpoint)
@@ -137,5 +148,26 @@ public class NotificationService {
     private static String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+    }
+
+    public void saveNotification(Long userId, String title, String body) {
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .title(title)
+                .body(body)
+                .createdAt(LocalDateTime.now())
+                .isRead(false)
+                .build();
+
+        notificationRepo.save(notification);
+    }
+
+    @PutMapping("/{id}/read")
+    public ResponseEntity<?> markAsRead(@PathVariable Long id) {
+        notificationRepo.findById(id).ifPresent(n -> {
+            n.setRead(true);
+            notificationRepo.save(n);
+        });
+        return ResponseEntity.ok().build();
     }
 }
