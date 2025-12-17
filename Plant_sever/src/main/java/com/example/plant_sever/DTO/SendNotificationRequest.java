@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 public class SendNotificationRequest {
+    private Long userId; 
     private String title;
     private String body;
     private Map<String, String> data;
@@ -41,6 +42,14 @@ public class SendNotificationRequest {
 
     public void setTargetTokens(List<String> targetTokens) {
         this.targetTokens = targetTokens;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }
 
