@@ -25,4 +25,11 @@ public class Notification {
     private boolean isRead = false;
 
     private LocalDateTime createdAt;
+
+    @PrePersist
+    void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }

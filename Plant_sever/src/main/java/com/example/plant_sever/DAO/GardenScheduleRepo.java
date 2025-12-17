@@ -75,6 +75,20 @@ public interface GardenScheduleRepo extends JpaRepository<GardenSchedule, Long> 
             LocalDateTime end
     );
 
+    @Query("""
+        SELECT gs FROM GardenSchedule gs
+        JOIN FETCH gs.garden g
+        JOIN FETCH g.user u
+        LEFT JOIN FETCH g.plant p
+        WHERE gs.completion = :completion
+          AND gs.scheduledTime BETWEEN :start AND :end
+    """)
+    List<GardenSchedule> findByCompletionAndScheduledTimeBetween(
+            @Param("completion") Completion completion,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
     Optional<Object> findTopByGardenAndTypeAndScheduledTimeLessThanEqualOrderByScheduledTimeDesc(Garden garden, ScheduleType type, LocalDateTime scheduledTimeIsLessThan);
 
     boolean existsByGardenAndTypeAndScheduledTime(Garden garden, ScheduleType type, LocalDateTime scheduledTime);

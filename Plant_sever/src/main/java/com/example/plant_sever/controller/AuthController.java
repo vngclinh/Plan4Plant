@@ -9,6 +9,7 @@ import com.example.plant_sever.model.Level;
 import com.example.plant_sever.model.User;
 import com.example.plant_sever.service.EmailService;
 import com.example.plant_sever.service.RefreshTokenService;
+import com.example.plant_sever.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
+    private final NotificationService notificationService;
 
     // Temporary store for reset codes (better: Redis or DB)
     private final Map<String, ResetCodeEntry> resetCodes = new HashMap<>();
@@ -33,11 +35,13 @@ public class AuthController {
     public AuthController(UserRepo userRepo,
                           PasswordEncoder passwordEncoder,
                           JwtUtils jwtUtils,
-                          RefreshTokenService refreshTokenService) {
+                          RefreshTokenService refreshTokenService,
+                          NotificationService notificationService) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.refreshTokenService = refreshTokenService;
+        this.notificationService = notificationService;
     }
 
     // ======================= AUTH =========================
@@ -61,6 +65,8 @@ public class AuthController {
         user.setStreak(0);
         userRepo.save(user);
 
+        notificationService.sendWelcomeNotification(user.getId(), user.getUsername(), true);
+
         return ResponseEntity.ok("User registered successfully!");
     }
 
@@ -74,6 +80,8 @@ public class AuthController {
         User user = userOpt.get();
         String jwt = jwtUtils.generateJwt(user.getUsername());
         String refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
+
+        notificationService.sendWelcomeNotification(user.getId(), user.getUsername(), false);
 
         return ResponseEntity.ok(new JwtResponse(jwt, refreshToken, user.getUsername()));
     }
