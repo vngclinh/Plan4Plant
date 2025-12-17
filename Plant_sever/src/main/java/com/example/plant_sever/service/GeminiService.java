@@ -31,11 +31,11 @@ public class GeminiService {
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    // 🛠️ FIX 1: Sử dụng tên model chính xác (1.5 thay vì 2.5)
+    // sd gemini 2.5
     private static final String MODEL = "gemini-2.5-flash"; 
     private static final String BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 
-    // 🧠 Xử lý câu hỏi dạng text
+    // Xử lý câu hỏi dạng text
     public String askGemini(String userMessage, Long userId) {
         if (!isConfirmationIntent(userMessage) && !isPlantTopicByAI(userMessage)) {
             return "Xin lỗi, tôi chỉ hỗ trợ **cây trồng/làm vườn** (tưới, bón phân, sâu bệnh, giá thể, ánh sáng, đất, chậu...). "
@@ -50,7 +50,7 @@ public class GeminiService {
 
         String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
 
-        // Lấy 5–10 lượt chat gần nhất để gửi làm context
+        // lấy đoạn chat cũ để tí gửi cùng
         List<ChatHistory> history = chatHistoryService.getRecentChats(userId);
         history.sort(Comparator.comparing(ChatHistory::getCreatedAt));
 
@@ -89,7 +89,7 @@ public class GeminiService {
         // Payload gửi đi
         JSONObject payload = new JSONObject()
                 .put("contents", contents)
-                .put("tools", tools); // Ở v1beta, tools nằm ở root level là CHÍNH XÁC
+                .put("tools", tools); 
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -106,7 +106,7 @@ public class GeminiService {
             // Kiểm tra xem Gemini có muốn gọi hàm không
             JSONObject functionCall = extractFunctionCall(parts);
             if (functionCall != null) {
-                // Xử lý logic gọi hàm (tìm cây, chẩn đoán bệnh...)
+                // Xử lý logic gọi hàm 
                 JSONObject functionResponse = handleFunctionCall(functionCall, userId);
 
                 if (shouldFallbackToGeneral(functionResponse)) {
@@ -155,17 +155,17 @@ public class GeminiService {
             return botReply;
 
         } catch (HttpClientErrorException e) {
-            return "❌ Gemini API error: " + e.getStatusCode() + " - " + e.getResponseBodyAsString();
+            return "Gemini API error: " + e.getStatusCode() + " - " + e.getResponseBodyAsString();
         } catch (Exception e) {
             e.printStackTrace();
-            return "❌ Internal error: " + e.getMessage();
+            return "Internal error: " + e.getMessage();
         }
     }
 
     // Xử lý câu hỏi có ảnh
     public String askGeminiWithImage(String userMessage, MultipartFile imageFile, Long userId) {
         if (imageFile == null || imageFile.isEmpty())
-            return "⚠️ Ảnh bị trống, vui lòng chọn lại.";
+            return "Ảnh bị trống, vui lòng chọn lại.";
 
         try {
             chatHistoryService.validateQuota(userId);
@@ -292,7 +292,6 @@ public class GeminiService {
 
         JSONObject previewFunction = new JSONObject()
                 .put("name", "get_disease_treatment_plan")
-                // QUAN TRỌNG: Sửa mô tả để Gemini hiểu hàm này dùng để TÌM CÂY luôn
                 .put("description", "Tìm kiếm thông tin cây trong vườn của người dùng (theo tên hoặc biệt danh) VÀ lấy kế hoạch điều trị nếu có bệnh.")
                 .put("parameters", new JSONObject()
                         .put("type", "object")
@@ -471,82 +470,82 @@ public class GeminiService {
         }
         return null;
     }
-private boolean isPlantTopicByAI(String userMessage) {
-    try {
-        String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
+    private boolean isPlantTopicByAI(String userMessage) {
+        try {
+            String url = BASE_URL + MODEL + ":generateContent?key=" + apiKey;
 
-        // Prompt phân loại
-        String prompt = """
-            Bạn là bộ lọc intent.
-            Hãy phân loại xem câu nói sau có liên quan đến chủ đề cây trồng, chăm sóc cây,
-            sâu bệnh, giá thể, tưới/bón phân hay không.
+            // Prompt phân loại
+            String prompt = """
+                Bạn là bộ lọc intent.
+                Hãy phân loại xem câu nói sau có liên quan đến chủ đề cây trồng, chăm sóc cây,
+                sâu bệnh, giá thể, tưới/bón phân hay không.
 
-            Nếu liên quan → chỉ trả lời đúng 1 từ: "YES"
-            Nếu không liên quan → chỉ trả lời đúng 1 từ: "NO"
+                Nếu liên quan → chỉ trả lời đúng 1 từ: "YES"
+                Nếu không liên quan → chỉ trả lời đúng 1 từ: "NO"
 
-            Câu cần phân loại: "%s"
-            """.formatted(userMessage);
+                Câu cần phân loại: "%s"
+                """.formatted(userMessage);
 
-        // Tạo JSON payload theo API v1beta
-        JSONObject content = new JSONObject()
-                .put("role", "user")
-                .put("parts", new JSONArray()
-                        .put(new JSONObject().put("text", prompt)));
+            // Tạo JSON payload theo API v1beta
+            JSONObject content = new JSONObject()
+                    .put("role", "user")
+                    .put("parts", new JSONArray()
+                            .put(new JSONObject().put("text", prompt)));
 
-        JSONObject payload = new JSONObject()
-                .put("contents", new JSONArray().put(content));
+            JSONObject payload = new JSONObject()
+                    .put("contents", new JSONArray().put(content));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-        RestTemplate restTemplate = new RestTemplate();
+            RestTemplate restTemplate = new RestTemplate();
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                url,
-                new HttpEntity<>(payload.toString(), headers),
-                String.class
-        );
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    url,
+                    new HttpEntity<>(payload.toString(), headers),
+                    String.class
+            );
 
-        JSONObject result = new JSONObject(response.getBody());
-        String reply = result.getJSONArray("candidates")
-                .getJSONObject(0)
-                .getJSONObject("content")
-                .getJSONArray("parts")
-                .getJSONObject(0)
-                .getString("text")
-                .trim()
-                .toUpperCase(Locale.ROOT);
+            JSONObject result = new JSONObject(response.getBody());
+            String reply = result.getJSONArray("candidates")
+                    .getJSONObject(0)
+                    .getJSONObject("content")
+                    .getJSONArray("parts")
+                    .getJSONObject(0)
+                    .getString("text")
+                    .trim()
+                    .toUpperCase(Locale.ROOT);
 
-        return reply.equals("YES");
+            return reply.equals("YES");
 
-    } catch (Exception e) {
-        return true; // fallback để không chặn câu hỏi
+        } catch (Exception e) {
+            return true; // fallback để không chặn câu hỏi
+        }
     }
-}
-private boolean isConfirmationIntent(String text) {
-    if (text == null) return false;
-    text = text.toLowerCase();
+    private boolean isConfirmationIntent(String text) {
+        if (text == null) return false;
+        text = text.toLowerCase();
 
-    String[] confirmKeywords = {
-        "tôi xác nhận",
-        "xác nhận",
-        "áp dụng",
-        "đồng ý",
-        "ok áp dụng",
-        "áp dụng ngay",
-        "có, áp dụng",
-        "ok làm đi",
-        "làm đi",
-        "thực hiện đi",
-        "tiến hành",
-        "áp dụng kế hoạch",
-        "tôi đồng ý"
-    };
+        String[] confirmKeywords = {
+            "tôi xác nhận",
+            "xác nhận",
+            "áp dụng",
+            "đồng ý",
+            "ok áp dụng",
+            "áp dụng ngay",
+            "có, áp dụng",
+            "ok làm đi",
+            "làm đi",
+            "thực hiện đi",
+            "tiến hành",
+            "áp dụng kế hoạch",
+            "tôi đồng ý",
+            "ok"
+        };
 
-    for (String k : confirmKeywords) {
-        if (text.contains(k)) return true;
+        for (String k : confirmKeywords) {
+            if (text.contains(k)) return true;
+        }
+        return false;
     }
-    return false;
-}
-
 }

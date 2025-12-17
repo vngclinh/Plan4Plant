@@ -29,7 +29,7 @@ public class ChatController {
         this.chatHistoryService = chatHistoryService;
     }
 
-    // 🗨️ Trường hợp chỉ gửi TEXT (application/json)
+    // Trường hợp chỉ gửi TEXT (application/json)
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public String chatText(@RequestBody Map<String, String> body) {
         String message = body.get("message");
@@ -41,7 +41,7 @@ public class ChatController {
         return geminiService.askGemini(message, userId);
     }
 
-    // 📸 Trường hợp gửi ảnh (multipart/form-data)
+    // Trường hợp gửi ảnh (multipart/form-data)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public String chatImage(@RequestPart("message") String message,
                             @RequestPart("image") MultipartFile imageFile) {
